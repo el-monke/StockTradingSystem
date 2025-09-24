@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Sign In{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <h1 class="display-4 text-center"></h1>
+  </div>
+</div>
+<div class="row mt-5">
+  <div class="col-md-6 mx-auto">
+    <div class="card"><div class="card-body" style="background-color: #F5F5F5;">
+      <h5 class="card-title text-center mb-5">Sign In</h5>
+      <form>
+          <div class="form-group row mb-5" style="padding-left: 8%;">
+            <label for="formControlInput1" class="col-sm-2 col-form-label">Username</label>
+            <div class="col-sm-10 ml-3" style="width: 50%;">  
+                <input type="text" class="form-control" id="formControlInput1" placeholder="jdoe115" style="background-color: #F5F5F5;border: none;">
+            </div>
+          </div>
+          <div class="form-group row mb-5" style="padding-left: 8%;">
+            <label for="formControlInput2" class="col-sm-2 col-form-label">Password</label>
+            <div class="col-sm-10" style="width: 50%;">
+                <input type="password" class="form-control" id="formControlInput2" placeholder="**********" style="background-color: #F5F5F5;border: none;">
+            </div>
+          </div>
+          <div class="form-group row mb-5" style="padding-left: 24%;">
+                <div class="col-sm-10">
+                    <button type="submit" class="btn btn-primary" style="background-color: #8C1D40;color: #F5F5F5;border:none;">Sign In</button>
+                    <a href="{{ url_for('createaccount') }}" class="btn btn-primary" style="background: none;border:none;padding-left: 20%;color:#747474;">Create Account</a>
+                </div>
+            </div>
+            </div>
+        </form>
+    </div></div> 
+  </div>
+</div>
+{% endblock %}
