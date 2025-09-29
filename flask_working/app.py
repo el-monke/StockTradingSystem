@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash
+from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_bootstrap import Bootstrap5
 from flask_sqlalchemy import SQLAlchemy
 
@@ -116,6 +116,26 @@ with app.app_context():
 # ------------------------------------------------------------------------------------------------------
 # CRUD FUNCTIONS
 
+# ADD USER
+@app.route('/createaccount', methods=["GET","POST"])
+def createaccount():
+    if request.method == "POST":
+        firstname = request.form["firstname"]
+        lastname = request.form["lastname"]
+        email = request.form["email"]
+        username = request.form["username"]
+        password = request.form["password"]
+        confpassword = request.form["confpassword"]
+
+        new_user = User(firstname=firstname, lastname=lastname, email=email, username=username, password=password, confpassword=confpassword)
+
+        db.session.add(new_user)
+        db.session.commit()
+
+        flash("User added successfully")
+        return redirect(url_for("signin"))
+    return render_template("createaccount.html")
+
 # READ
 @app.route('/read_user/<int:user_id>')
 def read_user(user_id):
@@ -159,15 +179,11 @@ def delete_user(user_id):
 @app.route("/")
 def index():
     users = User.query.all()
-    return render_template("index.html")
+    return render_template("index.html", users=users)
 
 @app.route("/signin")
 def signin():
     return render_template("signin.html")
-
-@app.route("/createaccount")
-def createaccount():
-    return render_template("createaccount.html")
 
 if __name__ == "__main__":
     app.run(debug=True)
