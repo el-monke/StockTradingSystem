@@ -185,5 +185,9 @@ def index():
 def signin():
     return render_template("signin.html")
 
+@app.route("/stock")
+def stock():
+    return render_template("stock.html")
+
 if __name__ == "__main__":
     app.run(debug=True)
