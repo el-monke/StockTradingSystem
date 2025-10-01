@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+    {% if current_user.is_authenticated %}
+        {% if current_user.role == "admin" %}
+            <h2>Admin Dashboard</h2>
+            <p>This is visible only to admins: Manage users, settings, etc.</p>
+        {% elif current_user.role == "user" %}
+        <style>
+            .card.hover-lift {transition: transform .2s ease, box-shadow .2s ease;}
+            .card.hover-lift:hover {transform: translateY(-4px); box-shadow: var(--bs-box-shadow-lg);}
+        </style>
+
+
+        <div class="container-fluid">
+
+            <div class="row align-items-stretch" style="min-height: 75vh;">
+                <div class="col-lg-9">
+                    <div class="card hover-lift rounded-4 h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">User Dashboard</h5>
+                            <p class="card-text">This is visible only to users: Your profile info.; Portfolio graph</p>                            
+                        </div>
+                    </div>
+                </div>
+            
+            <div class="col-lg-3 d-flex flex-column gap-4">
+                <div class="card hover-lift rounded-4 flex-fill">
+                    <div class="card-body">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Ticker</th>
+                                    <th scope="col">Mkt Price</th>
+                                    <th scope="col">Pct Change</th>
+                                </tr>
+                                <tbody>
+                                    
+                                </tbody>
+                            </thead>
+                        </table>
+                    </div>
+                </div>
+                <div class="card hover-lift rounded-4 flex-fill">
+                    <div class="card-body">
+                        <h5 class="card-title">Available Stock</h5>
+                        <p class="card-text">Will show new stocks added.</p>
+                        <h5 class="title">Balance</h5>
+                        <p class="card-text">Will show available funds.</p>                            
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        </div>
+        {% endif %}
+    {% else %}
+        <h1>You are not logged in</h1>
+    {% endif %}
+{% endblock %}
