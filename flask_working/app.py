@@ -1,113 +1,148 @@
 from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_bootstrap import Bootstrap5
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import ForeignKey # Allows you to attach db-level foreign-key to a column
+from datetime import datetime # For createdAt/updatedAt date/time
+import uuid # Generates unique identifiers (See "Account number" in CRUD)
 
 app = Flask(__name__)
 bootstrap = Bootstrap5(app)
 
 # ------------------------------------------------------------------------------------------------------
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password@localhost/sts_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Sandwich13!!!@localhost/sts_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your-secret-key'
 
 # Initialize database
 db = SQLAlchemy(app)
 
-# Define User model
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    firstname = db.Column(db.String(20), unique=False, nullable=False)
-    lastname = db.Column(db.String(20), unique=False, nullable=False)
+# ================================
+# MODELS
+# ================================
+
+# ---- Customer (ERD) ----
+class Customer(db.Model):
+    customerId = db.Column(db.Integer, primary_key=True)
+    fullname = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(15), unique=False, nullable=False)
-    confpassword = db.Column(db.String(15), unique=False, nullable=False)
+    customerAccountNumber = db.Column(db.String(32), unique=True, nullable=False)
+    hashedPassword = db.Column(db.String(255), nullable=False) # Storing plain text, not currently secure, Switch to hashing with Werkzeud before using in a signin route
+    availableFunds = db.Column(db.Float, default=0.0, nullable=False)
+    createdAt = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updatedAt = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def __repr__(self):
-        return f"<User {self.username}>"
+def __repr__(self):
+    return f"<Customer {self.customerId} {self.fullname}>"
 
-# Define Admin model
+# ---- Administrator ----
 class Admin(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(15), unique=False, nullable=False)
-    confpassword = db.Column(db.String(15), unique=False, nullable=False)
-    createdAt = db.Column(db.String(15))
-    updatedAt = db.Column(db.String(15))
+    __tablename__ = "administrator"
+    administratorId = db.Column(db.Integer, primary_key=True)  # PK
+    fullname = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    hashedPassword = db.Column(db.String(255), nullable=False)
+    createdAt = db.Column(db.String(25))
+    updatedAt = db.Column(db.String(25))
 
     def __repr__(self):
-        return f"<User {self.username}>"
+        return f"<Admin {self.administratorId} {self.fullname}>"
 
-# Define FinancialTransaction Model
+# ---- FinancialTransaction (ERD) ----
 class FinancialTransaction(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    financialTransactionId = db.Column(db.Integer, primary_key=True)  # PK
+    # FKs (Each financial transaction row must point to a valid customer via account number, company, and order)
+    customerAccountNumber = db.Column(db.String(32), ForeignKey("customer.customerAccountNumber"))
+    companyId = db.Column(db.Integer, ForeignKey("company.companyId"))
+    orderId = db.Column(db.Integer, ForeignKey("order_history.orderId"))
+    # Attributes
     amount = db.Column(db.Float)
-    transType = db.Column(db.String(4))
-    createdAt = db.Column(db.String(15))
+    type = db.Column(db.String(4))  # BUY/SELL
+    createdAt = db.Column(db.String(25))
 
-# Define OrderHistory Model
+# ---- OrderHistory (ERD) ----
 class OrderHistory(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    stockID = db.Column(db.Integer)
-    adminID = db.Column(db.Integer)
-    transType = db.Column(db.String(4))
-    qty = db.Column(db.Integer)
+    __tablename__ = "order_history"
+    orderId = db.Column(db.Integer, primary_key=True)  # PK
+    # FKs (link to Customer per "Has many OrderHistory via customerId")
+    stockId = db.Column(db.Integer, ForeignKey("stock_inventory.stockId"))
+    administratorId = db.Column(db.Integer, ForeignKey("administrator.administratorId"))
+    customerId = db.Column(db.Integer, ForeignKey("customer.customerId"))
+    # Attributes
+    type = db.Column(db.String(4))  # BUY/SELL
+    quantity = db.Column(db.Integer)
     price = db.Column(db.Float)
     totalValue = db.Column(db.Float)
-    status = db.Column(db.String(6))
-    companyName = db.Column(db.String(15))
-    ticker = db.Column(db.String(5))
-    createdAt = db.Column(db.String(15))
-    updatedAt = db.Column(db.String(15))
+    status = db.Column(db.String(6))  # OPEN, CANCEL, CLOSE
+    companyName = db.Column(db.String(120))
+    ticker = db.Column(db.String(16))
+    createdAt = db.Column(db.String(25))
+    updatedAt = db.Column(db.String(25))
 
-# Define Portfolio Model
+# ---- Portfolio ----
 class Portfolio(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    customerID = db.Column(db.Integer)
-    orderID = db.Column(db.Integer)
-    stockName = db.Column(db.String(15))
-    ticker = db.Column(db.String(5))
-    qty = db.Column(db.Float)
-    currentMktPrice = db.Column(db.Float)
-    createdAt = db.Column(db.String(15))
-    updatedAt = db.Column(db.String(15))
+    portfolioId = db.Column(db.Integer, primary_key=True)  # PK
+    # FKs (Each portfolio is tied to a customer and potentially an order)
+    customerId = db.Column(db.Integer, ForeignKey("customer.customerId"))
+    orderId = db.Column(db.Integer, ForeignKey("order_history.orderId"))
+    # Attributes
+    stockName = db.Column(db.String(120))
+    stockTicker = db.Column(db.String(16))
+    quantity = db.Column(db.Float)
+    currentMarketPrice = db.Column(db.Float)
+    createdAt = db.Column(db.String(25))
+    updatedAt = db.Column(db.String(25))
 
-
-# Define StockInventory Model
+# ---- StockInventory ----
 class StockInventory(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    adminID = db.Column(db.Integer)
-    stockName = db.Column(db.String(15))
-    ticker = db.Column(db.String(15))
-    qty = db.Column(db.Float)
+    __tablename__ = "stock_inventory"
+    stockId = db.Column(db.Integer, primary_key=True)  # PK
+    # FKs (Each stock entry belongs to a company and is managed by an admin)
+    companyId = db.Column(db.Integer, ForeignKey("company.companyId"))
+    administratorId = db.Column(db.Integer, ForeignKey("administrator.administratorId"))
+    # Attributes
+    name = db.Column(db.String(120))
+    ticker = db.Column(db.String(16))
+    quantity = db.Column(db.Float)
     initStockPrice = db.Column(db.Float)
-    currentMktPrice = db.Column(db.Float)
-    createdAt = db.Column(db.String(15))
-    updatedAt = db.Column(db.String(15))
+    currentMarketPrice = db.Column(db.Float)
+    createdAt = db.Column(db.String(25))
+    updatedAt = db.Column(db.String(25))
 
-# Define Company Model
+# ---- Company ----
 class Company(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    companyName = db.Column(db.String(15))
-    description = db.Column(db.String(100))
-    stockTotalQuality = db.Column(db.Float)
-    ticker = db.Column(db.String(15))
-    currentMktPrice = db.Column(db.Float)
-    createdAt = db.Column(db.String(15))
-    updatedAt = db.Column(db.String(15))
+    companyId = db.Column(db.Integer, primary_key=True)  # PK
+    name = db.Column(db.String(120))
+    description = db.Column(db.String(255))
+    stockTotalQuantity = db.Column(db.Float)
+    ticker = db.Column(db.String(16))
+    currentMarketPrice = db.Column(db.Float)
+    createdAt = db.Column(db.String(25))
+    updatedAt = db.Column(db.String(25))
 
-# Define WorkingDay Model
+# ---- Exception ----
+class Exception(db.Model):
+    __tablename__ = "exception"
+    exceptionId = db.Column(db.Integer, primary_key=True)  # PK
+    # FK (Exception is linked to an administrator)
+    administratorId = db.Column(db.Integer, ForeignKey("administrator.administratorId"))
+    # Attributes
+    reason = db.Column(db.String(255))
+    holidayDate = db.Column(db.String(25))
+    createdAt = db.Column(db.String(25))
+    updatedAt = db.Column(db.String(25))
+
+# ---- WorkingDay ----
 class WorkingDay(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    adminID = db.Column(db.Integer)
-    weekDay = db.Column(db.String(3))
-    openTime = db.Column(db.String(15))
-    closeTime = db.Column(db.String(15))
-    holida = db.Column(db.String(15))
-    createdAt = db.Column(db.String(15))
-    updatedAt = db.Column(db.String(15))
-
+    workingDayId = db.Column(db.Integer, primary_key=True)  # PK
+    # FK (WorkingDay is linked to an administrator)
+    administratorId = db.Column(db.Integer, ForeignKey("administrator.administratorId"))
+    # Attributes
+    dayOfWeek = db.Column(db.String(3))
+    startTime = db.Column(db.String(25))
+    endTime = db.Column(db.String(25))
+    createdAt = db.Column(db.String(25))
+    updatedAt = db.Column(db.String(25))
 
 # Create tables
 with app.app_context():
@@ -115,71 +150,85 @@ with app.app_context():
 
 # ------------------------------------------------------------------------------------------------------
 # CRUD FUNCTIONS
-
-# ADD USER
-@app.route('/createaccount', methods=["GET","POST"])
+# CREATE USER -> CREATE CUSTOMER
+@app.route('/createaccount', methods=["GET", "POST"])
 def createaccount():
     if request.method == "POST":
-        firstname = request.form["firstname"]
-        lastname = request.form["lastname"]
-        email = request.form["email"]
-        username = request.form["username"]
-        password = request.form["password"]
-        confpassword = request.form["confpassword"]
+        firstname = request.form.get("firstname", "").strip()
+        lastname = request.form.get("lastname", "").strip()
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+        confpassword = request.form.get("confpassword", "")
 
-        new_user = User(firstname=firstname, lastname=lastname, email=email, username=username, password=password, confpassword=confpassword)
+        if not firstname or not lastname or not email or not password or not confpassword:
+            flash("All fields are required", "error")
+            return redirect(url_for("createaccount"))
+        if password != confpassword:
+            flash("Passwords do not match", "error")
+            return redirect(url_for("createaccount"))
 
-        db.session.add(new_user)
+        fullname = f"{firstname} {lastname}".strip()
+        # minimal, simple account number; consider a real generator later
+        account_number = uuid.uuid4().hex[:12].upper()
+
+        new_customer = Customer(
+            fullname=fullname,
+            email=email,
+            customerAccountNumber=account_number,
+            hashedPassword=password,   # TODO: replace with a real hash
+            availableFunds=0.0
+        )
+        db.session.add(new_customer)
         db.session.commit()
 
-        flash("User added successfully")
+        flash("Account created successfully")
         return redirect(url_for("signin"))
     return render_template("createaccount.html")
 
 # READ
 @app.route('/read_user/<int:user_id>')
 def read_user(user_id):
-    user = User.query.get_or_404(user_id)
-    return f"User Details: ID: {user.id}, Username: {user.username}, Email: {user.email}"
+    customer = Customer.query.get_or_404(user_id)
+    return f"Customer Details: ID: {customer.customerId}, Fullname: {customer.fullname}, Email: {customer.email}"
 
-# UPDATE
-@app.route('/update_user/<int:user_id>/<string:username>/<string:email>')
-def update_user(user_id, username, email):
-    user = User.query.get_or_404(user_id)
-    if not username or not email:
-        flash('Both username and email are required!', 'error')
+# UPDATE (update fullname & email)
+@app.route('/update_user/<int:user_id>/<path:fullname>/<path:email>')
+def update_user(user_id, fullname, email):
+    customer = Customer.query.get_or_404(user_id)
+    if not fullname or not email:
+        flash('Both fullname and email are required!', 'error')
         return redirect(url_for('index'))
 
-    user.username = username
-    user.email = email
+    customer.fullname = fullname
+    customer.email = email
 
     try:
         db.session.commit()
-        flash(f'User {username} updated successfully!', 'success')
+        flash(f'Customer {customer.customerId} updated successfully!', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Error updating user: {str(e)}', 'error')
+        flash(f'Error updating customer: {str(e)}', 'error')
     return redirect(url_for('index'))
 
 # DELETE
 @app.route('/delete_user/<int:user_id>')
 def delete_user(user_id):
-    user = User.query.get_or_404(user_id)
+    customer = Customer.query.get_or_404(user_id)
     try:
-        db.session.delete(user)
+        db.session.delete(customer)
         db.session.commit()
-        flash(f'User {user.username} deleted successfully!', 'success')
+        flash(f'Customer {customer.customerId} deleted successfully!', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Error deleting user: {str(e)}', 'error')
+        flash(f'Error deleting customer: {str(e)}', 'error')
     return redirect(url_for('index'))
 
 # ------------------------------------------------------------------------------------------------------
 # ROUTES
 @app.route("/")
 def index():
-    users = User.query.all()
-    return render_template("index.html", users=users)
+    customers = Customer.query.all()
+    return render_template("index.html", users=customers)
 
 @app.route("/signin")
 def signin():
