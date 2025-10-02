@@ -9,7 +9,7 @@ import uuid
 app = Flask(__name__)
 # DATABASE -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password@localhost/sts_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Sandwich13!!!@localhost/sts_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your-secret-key'
 
@@ -249,14 +249,14 @@ def logout():
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Buy Stock Route; Need Logic
-@app.route('/home/buystock')
+@app.route('/home/buystock', methods=['GET'])
 def buyStock():
-    return render_template("buy_stock.html")
+    return render_template('buy_stock.html')
 
 # Sell Stock Route; Need Logic
-@app.route('/home/sellstock')
+@app.route('/home/sellstock', methods=['GET'])
 def sellStock():
-    return render_template("sell_stock.html")
+    return render_template('sell_stock.html')
 
 @app.route('/home/deposit', methods=["GET", "POST"])
 def depositFunds():
