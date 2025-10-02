@@ -3,9 +3,9 @@
 {% block content %}
 <h2>Stocks</h2>
 
-<p><b>Total Value:</b> ${{ "%.2f"|format(total_value) }}</p>
-<p><b>Total Cost:</b> ${{ "%.2f"|format(total_cost) }}</p>
-<p><b>Profit/Loss:</b> ${{ "%.2f"|format(lost_profit) }}</p>
+<p><b>Total Value:</b> $</p>
+<p><b>Total Cost:</b> $</p>
+<p><b>Profit/Loss:</b> $</p>
 
 <table border="1" cellpadding="6" cellspacing="0">
   <tr>
@@ -17,17 +17,6 @@
     <th>Position Value</th>
     <th>Profit/Loss</th>
   </tr>
-  {% for inv in investments %}
-  <tr>
-    <td>{{ inv.symbol }}</td>
-    <td>{{ inv.stockName }}</td>
-    <td>{{ inv.quantity }}</td>
-    <td>{{ "%.2f"|format(inv.avg_cost) }}</td>
-    <td>{{ "%.2f"|format(inv.current_price) }}</td>
-    <td>{{ "%.2f"|format(inv.value) }}</td>
-    <td>{{ "%.2f"|format(inv.pnl) }}</td>
-  </tr>
-  {% endfor %}
 </table>
 
 

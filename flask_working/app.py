@@ -9,7 +9,7 @@ import uuid
 app = Flask(__name__)
 # DATABASE -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Sandwich13!!!@localhost/sts_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password@localhost/sts_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your-secret-key'
 
@@ -249,15 +249,16 @@ def logout():
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Buy Stock Route; Need Logic
-@app.route('/home/buystock', methods=['GET'])
+@app.route('/home/buystock', methods=['GET', 'POST'])
 def buyStock():
     return render_template('buy_stock.html')
 
 # Sell Stock Route; Need Logic
-@app.route('/home/sellstock', methods=['GET'])
+@app.route('/home/sellstock', methods=['GET', 'POST'])
 def sellStock():
     return render_template('sell_stock.html')
 
+# Deposit Funds Route
 @app.route('/home/deposit', methods=["GET", "POST"])
 def depositFunds():
     if request.method == "POST":
@@ -268,6 +269,10 @@ def depositFunds():
             type="deposit",
             createdAt = datetime.datetime.now()
         )
+        # Call Portfolio for first transaction
+        if FinancialTransaction.query.filter_by(customerAccountNumber=current_user.customerAccountNumber).first() == None:
+            createPortfolio(current_user.userId)
+
         # Update Available funds
         current_user.availableFunds = current_user.availableFunds + float(amt)
         current_user.updatedAt = datetime.datetime.now()
@@ -276,6 +281,16 @@ def depositFunds():
         db.session.commit()
         return redirect(url_for("home"))
     return render_template("deposit.html")
+
+# Create Portfolio
+def createPortfolio(userId):
+    portfolio = Portfolio(
+        userId = current_user.userId,
+        createdAt = datetime.datetime.now(),
+        updatedAt = datetime.datetime.now()       
+    )
+    db.session.add(portfolio)
+    db.session.commit()
 
 # Withdraw Funds Route
 @app.route('/home/withdraw', methods=["GET", "POST"])
@@ -296,6 +311,11 @@ def withdrawFunds():
         db.session.commit()
         return redirect(url_for("home"))
     return render_template("withdraw.html")
+
+# Stock page Route
+@app.route('/home/stock', methods=['GET', 'POST'])
+def stocks():
+    return render_template("stock.html")
 
 if __name__ == "__main__":
     app.run(debug=True)
