@@ -57,7 +57,7 @@ class FinancialTransaction(db.Model):
     orderId = db.Column(db.Integer, ForeignKey("order_history.orderId"))
     # Attributes
     amount = db.Column(db.Float)
-    type = db.Column(db.String(4)) # BUY/SELL
+    type = db.Column(db.String(8)) # BUY/SELL/DEPOSIT/WITHDRAW
     createdAt = db.Column(db.DateTime, nullable=False)
 
     def get_id(self):
@@ -71,7 +71,7 @@ class OrderHistory(db.Model):
     adminId = db.Column(db.Integer, ForeignKey("admin.adminId"))
     userId = db.Column(db.Integer, ForeignKey("user.userId"))
     # Attributes
-    type = db.Column(db.String(4)) # BUY/SELL
+    type = db.Column(db.String(8)) # BUY/SELL
     quantity = db.Column(db.Integer)
     price = db.Column(db.Float)
     totalValue = db.Column(db.Float)
@@ -185,11 +185,11 @@ def home():
 def createaccount():
     if request.method == "POST":
         hashedPassword = bcrypt.generate_password_hash(request.form.get("password")).decode('utf-8')
-        acctPassword = uuid.uuid4().hex[:12].upper()
+        acctNumber = uuid.uuid4().hex[:12].upper()
         user = User(
             fullName=request.form.get("fullName"),
             email=request.form.get("email"),
-            customerAccountNumber=acctPassword,
+            customerAccountNumber=acctNumber,
             password=hashedPassword,  # Hashed password
             role="user",  # Default role is "user"
             createdAt = datetime.datetime.now(),
@@ -226,18 +226,18 @@ def createaccount_admin():
 # SignIn Route
 @app.route('/signIn', methods=["GET", "POST"])
 def signIn():
-	if request.method == "POST":
-		if User.query.filter_by(email=request.form.get("email")).first() != None:
-			user = User.query.filter_by(email=request.form.get("email")).first()
-			if user and bcrypt.check_password_hash(user.password, request.form.get("password")):
-				login_user(user)
-				return redirect(url_for("home"))
-		else:
-			admin = Admin.query.filter_by(email=request.form.get("email")).first()
-			if admin and bcrypt.check_password_hash(admin.password, request.form.get("password")):
-				login_user(admin)
-				return redirect(url_for("home"))
-	return render_template("sign_in.html")
+    if request.method == "POST":
+        if User.query.filter_by(email=request.form.get("email")).first() != None:
+            user = User.query.filter_by(email=request.form.get("email")).first()
+            if user and bcrypt.check_password_hash(user.password, request.form.get("password")):
+                login_user(user)
+                return redirect(url_for("home"))
+        else:
+            admin = Admin.query.filter_by(email=request.form.get("email")).first()
+            if admin and bcrypt.check_password_hash(admin.password, request.form.get("password")):
+                login_user(admin)
+                return redirect(url_for("home"))
+    return render_template("sign_in.html")
 
 # LogOut Route
 @app.route('/logout')
@@ -248,6 +248,54 @@ def logout():
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+# Buy Stock Route; Need Logic
+@app.route('/home/buystock')
+def buyStock():
+    return render_template("buy_stock.html")
+
+# Sell Stock Route; Need Logic
+@app.route('/home/sellstock')
+def sellStock():
+    return render_template("sell_stock.html")
+
+@app.route('/home/deposit', methods=["GET", "POST"])
+def depositFunds():
+    if request.method == "POST":
+        amt = request.form.get("amount")
+        deposit = FinancialTransaction(
+            customerAccountNumber = current_user.customerAccountNumber,
+            amount=amt,
+            type="deposit",
+            createdAt = datetime.datetime.now()
+        )
+        # Update Available funds
+        current_user.availableFunds = current_user.availableFunds + float(amt)
+        current_user.updatedAt = datetime.datetime.now()
+        
+        db.session.add(deposit)
+        db.session.commit()
+        return redirect(url_for("home"))
+    return render_template("deposit.html")
+
+# Withdraw Funds Route
+@app.route('/home/withdraw', methods=["GET", "POST"])
+def withdrawFunds():
+    if request.method == "POST":
+        amt = request.form.get("amount")
+        withdraw = FinancialTransaction(
+            customerAccountNumber = current_user.customerAccountNumber,
+            amount=amt,
+            type="withdraw",
+            createdAt=datetime.datetime.now()
+        )
+        # Withdraw from Available Funds
+        current_user.availableFunds = current_user.availableFunds - float(amt)
+        current_user.updatedAt = datetime.datetime.now()
+
+        db.session.add(withdraw)
+        db.session.commit()
+        return redirect(url_for("home"))
+    return render_template("withdraw.html")
 
 if __name__ == "__main__":
     app.run(debug=True)

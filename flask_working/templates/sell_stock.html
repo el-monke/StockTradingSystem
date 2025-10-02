@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Sell Stock{% endblock %}
+{% block content %}
+<style>
+    .card.hover-lift {transition: transform .2s ease, box-shadow .2s ease;}
+    .card.hover-lift:hover {transform: translateY(-4px); box-shadow: var(--bs-box-shadow-lg);}
+</style>
+
+<div class="row mt-5" style="padding-top: 15%;">
+  <div class="col-md-6 mx-auto">
+    <div class="card hover-lift rounded-4 overflow-hidden">
+     <div class="card-body" style="background-color: #F5F5F5;">
+      <h5 class="card-title text-center mb-5">Sell Stock</h5>
+
+
+      <form action="{{ url_for('sellStock') }}" method="post">
+
+
+
+          <div class="form-group row mb-5" style="padding-left: 24%;">
+                <div class="col-sm-10">
+                    <button type="submit" class="btn btn-primary rounded-3" style="background-color: #8C1D40;color: #F5F5F5;border:none;">Submit</button>
+                </div>
+            </div>
+            </div>
+        </form>
+    </div></div> 
+  </div>
+{% endblock %}
