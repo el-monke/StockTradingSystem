@@ -88,7 +88,7 @@ class OrderHistory(db.Model):
 class Portfolio(db.Model):
     portfolioId = db.Column(db.Integer, primary_key=True)
     # Foreign Keys
-    customerId = db.Column(db.Integer, ForeignKey("user.userId"))
+    userId = db.Column(db.Integer, ForeignKey("user.userId"))
     orderId = db.Column(db.Integer, ForeignKey("order_history.orderId"))
     # Attributes
     stockName = db.Column(db.String(120))
@@ -247,6 +247,81 @@ def logout():
     return redirect(url_for("signIn"))
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# CRUD FUNCTIONS - WORK IN PROGRESS
+# CREATE USER -> CREATE CUSTOMER
+#@app.route('/createaccount', methods=["GET", "POST"])
+#def createaccount():
+    #if request.method == "POST":
+        #firstname = request.form.get("firstname", "").strip()
+        #lastname = request.form.get("lastname", "").strip()
+        #email = request.form.get("email", "").strip()
+        #password = request.form.get("password", "")
+        #confpassword = request.form.get("confpassword", "")
+
+        #if not firstname or not lastname or not email or not password or not confpassword:
+            #flash("All fields are required", "error")
+            #return redirect(url_for("createaccount"))
+        #if password != confpassword:
+            #flash("Passwords do not match", "error")
+            #return redirect(url_for("createaccount"))
+
+        #fullname = f"{firstname} {lastname}".strip()
+        # minimal, simple account number; consider a real generator later
+        #account_number = uuid.uuid4().hex[:12].upper()
+
+        #new_customer = Customer(
+            #fullname=fullname,
+            #email=email,
+            #customerAccountNumber=account_number,
+            #hashedPassword=password,   # TODO: replace with a real hash
+            #availableFunds=0.0
+        #)
+        #db.session.add(new_customer)
+        #db.session.commit()
+
+        #flash("Account created successfully")
+        #return redirect(url_for("signin"))
+    #return render_template("createaccount.html")
+
+# READ
+#@app.route('/read_user/<int:user_id>')
+#def read_user(user_id):
+    #customer = Customer.query.get_or_404(user_id)
+    #return f"Customer Details: ID: {customer.customerId}, Fullname: {customer.fullname}, Email: {customer.email}"
+
+# UPDATE (update fullname & email)
+#@app.route('/update_user/<int:user_id>/<path:fullname>/<path:email>')
+#def update_user(user_id, fullname, email):
+    #customer = Customer.query.get_or_404(user_id)
+    #if not fullname or not email:
+        #flash('Both fullname and email are required!', 'error')
+        #return redirect(url_for('index'))
+
+    #customer.fullname = fullname
+    #customer.email = email
+
+    #try:
+        #db.session.commit()
+        #flash(f'Customer {customer.customerId} updated successfully!', 'success')
+    #except Exception as e:
+        #db.session.rollback()
+        #flash(f'Error updating customer: {str(e)}', 'error')
+    #return redirect(url_for('index'))
+
+# DELETE
+#@app.route('/delete_user/<int:user_id>')
+#def delete_user(user_id):
+    #customer = Customer.query.get_or_404(user_id)
+    #try:
+        #db.session.delete(customer)
+        #db.session.commit()
+        #flash(f'Customer {customer.customerId} deleted successfully!', 'success')
+    #except Exception as e:
+        #db.session.rollback()
+        #flash(f'Error deleting customer: {str(e)}', 'error')
+    #return redirect(url_for('index'))
+
+# ------------------------------------------------------------------------------------------------------
 
 # Buy Stock Route; Need Logic
 @app.route('/home/buystock', methods=['GET', 'POST'])
@@ -316,6 +391,71 @@ def withdrawFunds():
 @app.route('/home/stock', methods=['GET', 'POST'])
 def stocks():
     return render_template("stock.html")
+
+# Stock page Route - WORK IN PROGRESS
+#Yfinance stocks import yfinance
+#@app.route("/home/stock", methods=['GET', 'POST'])
+#@login_required
+#def stocks():
+    #investments = Portfolio.query.filter_by(customerId=current_user.userId).all()
+
+    #total_value = 0.0
+    #total_cost = 0.0
+    #updated_investments = []
+
+    #for inv in investments:
+        #symbol = (inv.ticker or "").upper()
+        #qty = float(inv.quantity or 0.0)
+        #buy_price = float(inv.mktPrice or 0.0) 
+
+        #live_price = 0.0 
+
+        #try:
+            #ticker = yf.Ticker(symbol)
+
+            
+            #try:
+                #fi = getattr(ticker, "fast_info", {}) or {}
+                #last = fi.get("last_price")
+                #if last is not None:
+                    #live_price = float(last)
+                #else:
+                    #raise ValueError("no fast_info price")
+            #except Exception:
+                # fallback to history
+                #hist = ticker.history(period="1d")
+                #if not hist.empty:
+                    #live_price = float(hist["Close"].iloc[-1])
+        #except Exception:
+            #pass  
+#Variables
+        #current_value = qty * live_price
+        #cost = qty * buy_price
+        #lost_profit = current_value - cost
+
+        #total_value += current_value
+        #total_cost += cost
+
+        #updated_investments.append({
+            #"id": inv.id,
+            #"symbol": symbol,
+            #"category": inv.category,
+            #"quantity": qty,
+            #"buy_price": round(buy_price, 2),
+            #"current_price": round(live_price, 2),
+            #"value": round(current_value, 2),
+            #"lost_profit": round(lost_profit, 2)
+        #})
+    # portfolio
+    #portfolio = total_value - total_cost
+
+    #return render_template(
+        #"stock.html",
+        #investments = updated_investments,
+        #total_value = round(total_value, 2),
+        #total_cost = round(total_cost, 2),
+        #lost_profit = round(portfolio, 2)
+    #)
 
 if __name__ == "__main__":
     app.run(debug=True)
