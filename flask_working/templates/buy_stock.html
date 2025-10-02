@@ -12,6 +12,7 @@
      <div class="card-body" style="background-color: #F5F5F5;">
       <h5 class="card-title text-center mb-5">Buy Stock</h5>
 
+
       <form action="{{ url_for('buyStock') }}" method="post">
         <div class="d-flex">
           <p class="form-label fw-bold mb-5" style="padding-left: 8%;">Current Balance</p>
@@ -45,4 +46,19 @@
     </div>
   </div> 
 </div>
+{% endblock %}
+
+      <form action="{{ url_for('buyStock') }}" method="post">
+
+
+
+          <div class="form-group row mb-5" style="padding-left: 24%;">
+                <div class="col-sm-10">
+                    <button type="submit" class="btn btn-primary rounded-3" style="background-color: #8C1D40;color: #F5F5F5;border:none;">Submit</button>
+                </div>
+            </div>
+            </div>
+        </form>
+    </div></div> 
+  </div>
 {% endblock %}
