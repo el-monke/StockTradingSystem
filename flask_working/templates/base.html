@@ -19,6 +19,7 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('home') }}">Portfolio</a></li>
+                    <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('stock') }}">Stocks</a></li>
 
                     <div class="dropdown">
                         <a class="nav-link dropdown-toggle text-light" type="button" data-bs-toggle="dropdown">Transact</a>
@@ -29,6 +30,12 @@
                             <li><a class="nav-link" href="{{ url_for('withdrawFunds') }}"><button class="dropdown-item" type="button">Withdraw</button></a></li>
                         </ul>
                     </div>
+                    
+                    <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                    <a class="btn btn-outline-light" href="{{ url_for('signin') }}">Sign in</a>
+                    <li class="nav-item">
+                    <a class="btn btn-outline-light" href="{{ url_for('signin') }}">Sign out</a>
 
                 </ul>
             </div>
