@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import ForeignKey
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
+from functools import wraps # For Admin only routes
 import datetime
 import uuid
 import yfinance as yf
@@ -176,6 +177,9 @@ with app.app_context():
 # User loader
 @login_manager.user_loader
 def load_user(user_id):
+    admin = Admin.query.get(int(user_id))
+    if admin:
+        return admin
     return User.query.get(int(user_id))
 
 # Home Route
@@ -244,6 +248,15 @@ def signIn():
                 login_user(admin)
                 return redirect(url_for("home"))
     return render_template("sign_in.html")
+
+# Admin Required Route
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != "admin":
+            return redirect(url_for("signIn"))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # LogOut Route
 @app.route('/logout')
@@ -435,7 +448,7 @@ def stock():
     if form.validate_on_submit():
         now = datetime.datetime.now()
         p = Portfolio(
-            customerId=current_user.userId,
+            userId=current_user.userId,
             orderId=None,                 
             stockName=form.ticker.data.upper(),
             ticker=form.ticker.data.upper(),
@@ -451,7 +464,7 @@ def stock():
 
     # Rows for portfolio
     rows = []
-    holdings = Portfolio.query.filter_by(customerId=current_user.userId).order_by(Portfolio.ticker.asc()).all()
+    holdings = Portfolio.query.filter_by(userId=current_user.userId).order_by(Portfolio.ticker.asc()).all()
 
     for h in holdings:
         current = get_live_price(h.ticker)
@@ -475,6 +488,41 @@ def stock():
     totals["pnl"] = totals["value"] - totals["cost"]
 
     return render_template("stock.html", form=form, rows=rows, totals=totals)
+
+# Create Stock Route
+@app.route('/createstock', methods=["GET", "POST"])
+@login_required
+@admin_required
+def createStock():
+    if request.method == "POST":
+        company = Company(
+            name=request.form.get("companyName"),
+            description=request.form.get("companyDesc"),
+            stockTotalQty=request.form.get("totalQuantity"),
+            ticker=request.form.get("ticker"),
+            currentMktPrice=request.form.get("currentMktPrice"),
+            createdAt=datetime.datetime.now(),
+            updatedAt=datetime.datetime.now()
+        )
+
+        db.session.add(company)
+        db.session.flush()
+
+        stock = StockInventory(
+            name=request.form.get("companyName"),
+            companyId=company.companyId,
+            adminId=current_user.adminId,
+            ticker=request.form.get("ticker"),
+            quantity=request.form.get("quantity"),
+            initStockPrice=request.form.get("initStockPrice"),
+            currentMktPrice=request.form.get("currentMktPrice"),
+            createdAt = datetime.datetime.now(),
+            updatedAt = datetime.datetime.now()
+        )
+        db.session.add(stock)
+        db.session.commit()
+        return redirect(url_for("home"))
+    return render_template("create_stock.html")
 
 if __name__ == "__main__":
     app.run(debug=True)
