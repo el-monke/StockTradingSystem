@@ -5,6 +5,12 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from flask_bcrypt import Bcrypt
 import datetime
 import uuid
+import yfinance as yf
+from flask_wtf import FlaskForm
+from wtforms import StringField, IntegerField, DecimalField, SubmitField
+from wtforms.validators import DataRequired, NumberRange
+from decimal import Decimal
+#pip install WTForm
 
 app = Flask(__name__)
 # DATABASE -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -393,6 +399,82 @@ def stocks():
     return render_template("stock.html")
 
 # Stock page Route - WORK IN PROGRESS
+#form
+class StockForm(FlaskForm):
+    ticker = StringField("Ticker", validators=[DataRequired()])  # e.g., AAPL
+    quantity = IntegerField("Quantity", validators=[DataRequired(), NumberRange(min=1)])
+    avg_cost = DecimalField(
+        "Average Cost",
+        places=2,
+        rounding=None,
+        validators=[DataRequired(), NumberRange(min=0)]
+    )
+    submit = SubmitField("Add to Portfolio")
+
+# live data yfinance
+def get_live_price(symbol: str) -> Decimal:
+    try:
+        t = yf.Ticker(symbol.upper())
+        fi = getattr(t, "fast_info", None)
+        if fi and getattr(fi, "last_price", None) is not None:
+            return Decimal(str(fi.last_price))
+        hist = t.history(period="1d")
+        if not hist.empty:
+            return Decimal(str(float(hist["Close"].iloc[-1])))
+    except Exception:
+        pass
+    return Decimal("0")
+
+
+@app.route("/stock", methods=["GET", "POST"])
+@login_required
+def stock():
+    form = StockForm()
+
+    # Add info to form
+    if form.validate_on_submit():
+        now = datetime.datetime.now()
+        p = Portfolio(
+            customerId=current_user.userId,
+            orderId=None,                 
+            stockName=form.ticker.data.upper(),
+            ticker=form.ticker.data.upper(),
+            quantity=int(form.quantity.data),
+            mktPrice=float(form.avg_cost.data), 
+            createdAt=now,
+            updatedAt=now
+        )
+        db.session.add(p)
+        db.session.commit()
+        flash(f"Added {p.ticker} x{p.quantity} at ${p.mktPrice:.2f}", "success")
+        return redirect(url_for("stock"))
+
+    # Rows for portfolio
+    rows = []
+    holdings = Portfolio.query.filter_by(customerId=current_user.userId).order_by(Portfolio.ticker.asc()).all()
+
+    for h in holdings:
+        current = get_live_price(h.ticker)
+        qty = int(h.quantity or 0)
+        avg_cost = Decimal(str(h.mktPrice or 0))
+        position_value = current * qty
+        profit_loss = position_value - (avg_cost * qty)
+        rows.append({
+            "name": h.ticker,                  
+            "quantity": qty,
+            "avg_cost": avg_cost,
+            "current_price": current,
+            "position_value": position_value,
+            "profit_loss": profit_loss
+        })
+
+    totals = {
+        "value": sum(r["position_value"] for r in rows),
+        "cost": sum(r["avg_cost"] * r["quantity"] for r in rows),
+    }
+    totals["pnl"] = totals["value"] - totals["cost"]
+
+    return render_template("stock.html", form=form, rows=rows, totals=totals)
 
 if __name__ == "__main__":
     app.run(debug=True)
