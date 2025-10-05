@@ -6,7 +6,6 @@ from flask_bcrypt import Bcrypt
 from functools import wraps # For Admin only routes
 import datetime
 import uuid
-import yfinance as yf
 from flask_wtf import FlaskForm
 from wtforms import StringField, IntegerField, DecimalField, SubmitField
 from wtforms.validators import DataRequired, NumberRange
@@ -542,9 +541,8 @@ def stocks():
     return render_template("stock.html")
 
 # Stock page Route - WORK IN PROGRESS
-#form
 class StockForm(FlaskForm):
-    ticker = StringField("Ticker", validators=[DataRequired()])  # e.g., AAPL
+    ticker = StringField("Ticker", validators=[DataRequired()])  # string for stocks
     quantity = IntegerField("Quantity", validators=[DataRequired(), NumberRange(min=1)])
     avg_cost = DecimalField(
         "Average Cost",
@@ -554,18 +552,27 @@ class StockForm(FlaskForm):
     )
     submit = SubmitField("Add to Portfolio")
 
-# live data yfinance
+# data
 def get_live_price(symbol: str) -> Decimal:
-    try:
-        t = yf.Ticker(symbol.upper())
-        fi = getattr(t, "fast_info", None)
-        if fi and getattr(fi, "last_price", None) is not None:
-            return Decimal(str(fi.last_price))
-        hist = t.history(period="1d")
-        if not hist.empty:
-            return Decimal(str(float(hist["Close"].iloc[-1])))
-    except Exception:
-        pass
+   
+    sym = (symbol or "").upper().strip()
+    if not sym:
+        return Decimal("0")
+
+    # company table
+    comp = Company.query.filter_by(ticker=sym).first()
+    if comp and comp.currentMktPrice is not None:
+        return Decimal(str(comp.currentMktPrice))
+
+    # stock invetory
+    sck = (StockInventory.query
+          .filter_by(ticker=sym)
+          .order_by(StockInventory.updatedAt.desc())
+          .first())
+    if sck and sck.currentMktPrice is not None:
+        return Decimal(str(sck.currentMktPrice))
+
+    # No price found
     return Decimal("0")
 
 
@@ -574,11 +581,11 @@ def get_live_price(symbol: str) -> Decimal:
 def stock():
     form = StockForm()
 
-    # Add info to form
+    # Add info to flask form
     if form.validate_on_submit():
         now = datetime.datetime.now()
         p = Portfolio(
-            userId=current_user.userId,
+            customerId=current_user.userId,
             orderId=None,                 
             stockName=form.ticker.data.upper(),
             ticker=form.ticker.data.upper(),
@@ -594,7 +601,7 @@ def stock():
 
     # Rows for portfolio
     rows = []
-    holdings = Portfolio.query.filter_by(userId=current_user.userId).order_by(Portfolio.ticker.asc()).all()
+    holdings = Portfolio.query.filter_by(customerId=current_user.userId).order_by(Portfolio.ticker.asc()).all()
 
     for h in holdings:
         current = get_live_price(h.ticker)
