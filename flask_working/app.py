@@ -40,7 +40,7 @@ class User(UserMixin, db.Model):
     updatedAt = db.Column(db.DateTime, nullable=False)
 
     def get_id(self):
-        return str(self.userId)
+        return f"user:{self.userId}"
 
 # Define Admin model
 class Admin(UserMixin, db.Model):
@@ -53,7 +53,7 @@ class Admin(UserMixin, db.Model):
     updatedAt = db.Column(db.DateTime, nullable=False)
 
     def get_id(self):
-        return str(self.adminId)
+        return f"admin:{self.adminId}"
 
 # Define FinancialTransaction model
 class FinancialTransaction(db.Model):
@@ -177,10 +177,13 @@ with app.app_context():
 # User loader
 @login_manager.user_loader
 def load_user(user_id):
-    admin = Admin.query.get(int(user_id))
-    if admin:
-        return admin
-    return User.query.get(int(user_id))
+    type, unprefix = user_id.split(":", 1)
+    trueId = int(unprefix)
+
+    if type == "admin":
+        return Admin.query.get(trueId)
+    if type == "user":
+        return User.query.get(trueId)
 
 # Home Route
 @app.route('/')
@@ -345,11 +348,88 @@ def logout():
 # Buy Stock Route; Need Logic
 @app.route('/home/buystock', methods=['GET', 'POST'])
 def buyStock():
+    if request.method == "POST":
+        # Read Sheet
+        ticker = request.form.get("ticker")
+        stock = StockInventory.query.filter_by(ticker=ticker).first()
+        quantity = request.form.get("quantity")
+        amt = stock.currentMktPrice * float(quantity)
+        # Call Withdraw
+        withdraw_action(amt)
+         # Update Order History
+        order = OrderHistory(
+            stockId=stock.stockId,
+            userId=current_user.userId,
+            type="BUY",
+            quantity=quantity,
+            price=stock.currentMktPrice,
+            totalValue=amt,
+            status="OPEN",
+            companyName=stock.name,
+            ticker=stock.ticker,
+            createdAt = datetime.datetime.now(),
+            updatedAt = datetime.datetime.now()
+        )
+        db.session.add(order)
+        db.session.flush()
+        # Update Portfolio
+        portfolio = Portfolio(
+            userId=current_user.userId,
+            orderId= order.orderId,
+            stockName=stock.name,
+            ticker=stock.ticker,
+            quantity=quantity,
+            mktPrice=stock.currentMktPrice,
+            createdAt = datetime.datetime.now(),
+            updatedAt = datetime.datetime.now()
+        )
+        db.session.add(portfolio)
+        db.session.flush()
+        return redirect(url_for("home"))
+    
     return render_template('buy_stock.html')
 
 # Sell Stock Route; Need Logic
 @app.route('/home/sellstock', methods=['GET', 'POST'])
 def sellStock():
+    if request.method == "POST":
+        # Read Sheet
+        ticker = request.form.get("ticker")
+        stock = StockInventory.query.filter_by(ticker=ticker).first()
+        quantity = request.form.get("quantity")
+        amt = stock.currentMktPrice * float(quantity)
+        # Call Deposit
+        deposit_action(amt)
+        # Update Order History
+        order = OrderHistory(
+            stockId=stock.stockId,
+            userId=current_user.userId,
+            type="SELL",
+            quantity=quantity,
+            price=stock.currentMktPrice,
+            totalValue=amt,
+            status="OPEN",
+            companyName=stock.name,
+            ticker=stock.ticker,
+            createdAt = datetime.datetime.now(),
+            updatedAt = datetime.datetime.now()
+        )
+        db.session.add(order)
+        db.session.flush()
+        # Update Portfolio
+        portfolio = Portfolio(
+            userId=current_user.userId,
+            orderId= order.orderId,
+            stockName=stock.name,
+            ticker=stock.ticker,
+            quantity=quantity,
+            mktPrice=stock.currentMktPrice,
+            createdAt = datetime.datetime.now(),
+            updatedAt = datetime.datetime.now()
+        )
+        db.session.add(portfolio)
+        db.session.flush()
+        return redirect(url_for("home"))
     return render_template('sell_stock.html')
 
 # Deposit Funds Route
@@ -357,25 +437,28 @@ def sellStock():
 def depositFunds():
     if request.method == "POST":
         amt = request.form.get("amount")
-        deposit = FinancialTransaction(
-            customerAccountNumber = current_user.customerAccountNumber,
-            amount=amt,
-            type="deposit",
-            createdAt = datetime.datetime.now()
-        )
+        deposit_action(amt)
         # Call Portfolio for first transaction
         if FinancialTransaction.query.filter_by(customerAccountNumber=current_user.customerAccountNumber).first() == None:
             createPortfolio(current_user.userId)
 
-        # Update Available funds
-        current_user.availableFunds = current_user.availableFunds + float(amt)
-        current_user.updatedAt = datetime.datetime.now()
-        
-        db.session.add(deposit)
-        db.session.commit()
         return redirect(url_for("home"))
     return render_template("deposit.html")
 
+def deposit_action(amount):
+    deposit = FinancialTransaction(
+            customerAccountNumber = current_user.customerAccountNumber,
+            amount=amount,
+            type="deposit",
+            createdAt = datetime.datetime.now()
+        )
+    # Update Available funds
+    current_user.availableFunds = current_user.availableFunds + float(amount)
+    current_user.updatedAt = datetime.datetime.now()
+    
+    db.session.add(deposit)
+    db.session.commit()
+    
 # Create Portfolio
 def createPortfolio(userId):
     portfolio = Portfolio(
@@ -391,20 +474,24 @@ def createPortfolio(userId):
 def withdrawFunds():
     if request.method == "POST":
         amt = request.form.get("amount")
-        withdraw = FinancialTransaction(
+        withdraw_action(amt)
+        
+        return redirect(url_for("home"))
+    return render_template("withdraw.html")
+
+def withdraw_action(amount):
+    withdraw = FinancialTransaction(
             customerAccountNumber = current_user.customerAccountNumber,
-            amount=amt,
+            amount=amount,
             type="withdraw",
             createdAt=datetime.datetime.now()
         )
-        # Withdraw from Available Funds
-        current_user.availableFunds = current_user.availableFunds - float(amt)
-        current_user.updatedAt = datetime.datetime.now()
-
-        db.session.add(withdraw)
-        db.session.commit()
-        return redirect(url_for("home"))
-    return render_template("withdraw.html")
+    # Withdraw from Available Funds
+    current_user.availableFunds = current_user.availableFunds - float(amount)
+    current_user.updatedAt = datetime.datetime.now()
+    
+    db.session.add(withdraw)
+    db.session.commit()
 
 # Stock page Route
 @app.route('/home/stock', methods=['GET', 'POST'])
