@@ -3,8 +3,68 @@
 {% block content %}
     {% if current_user.is_authenticated %}
         {% if current_user.role == "admin" %}
-            <h2>Admin Dashboard</h2>
-            <p>This is visible only to admins: Manage users, settings, etc.</p>
+        <style>
+            .card.hover-lift {transition: transform .2s ease, box-shadow .2s ease;}
+            .card.hover-lift:hover {transform: translateY(-4px); box-shadow: var(--bs-box-shadow-lg);}
+        </style>
+
+        <div class="row align-items-stretch" style="min-height: 75vh;">
+            <div class="col-lg-8">
+                <div class="card hover-lift rounded-4 h-100">
+                    <div class="card-body">
+                        <h5 class="card-title text-center">Admin Dashboard</h5>
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Email</th>
+                                    <th scope="col">Account Number</th>
+                                    <th scope="col">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for i in user %}
+                                <tr>
+                                    <td>{{ i.fullName }}</td>
+                                    <td>{{ i.email }}</td>
+                                    <td>{{ i.customerAccountNumber }}</td>
+                                    <td>${{ i.availableFunds }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>                            
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card hover-lift rounded-4 h-100">
+                    <div class="card-body">
+                        <h5 class="card-title text-center">Stocks</h5>
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Ticker</th>
+                                    <th scope="col">Qty</th>
+                                    <th scope="col">Init Price</th>
+                                    <th scope="col">Current Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for i in stock %}
+                                <tr>
+                                    <td>{{ i.ticker }}</td>
+                                    <td>{{ i.quantity }}</td>
+                                    <td>${{ i.initStockPrice }}</td>
+                                    <td>${{ i.currentMktPrice }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
         {% elif current_user.role == "user" %}
         <style>
             .card.hover-lift {transition: transform .2s ease, box-shadow .2s ease;}
@@ -18,8 +78,8 @@
                 <div class="col-lg-9">
                     <div class="card hover-lift rounded-4 h-100">
                         <div class="card-body">
-                            <h5 class="card-title">User Dashboard</h5>
-                            <p class="card-text">This is visible only to users: Your profile info.; Portfolio graph</p>                            
+                            <h5 class="card-title">{{ current_user.fullName }} - Dashboard</h5>
+                            <img src="{{ url_for('static', filename='graph.png')}}" class="img-fluid" style="margin-top: 10%;" alt="Placeholder graph">                            
                         </div>
                     </div>
                 </div>
@@ -29,22 +89,46 @@
                     <div class="card-body">
                         <table class="table">
                             <thead>
+                                <h5 class="title">Owned Stock</h5>
                                 <tr>
                                     <th scope="col">Ticker</th>
                                     <th scope="col">Mkt Price</th>
-                                    <th scope="col">Pct Change</th>
+                                    <th scope="col">Qty</th>
                                 </tr>
-                                <tbody>
-                                    
-                                </tbody>
                             </thead>
+                            <tbody>
+                                {% for i in portfolio %}
+                                <tr>
+                                    <th scope="row">{{ i.ticker }}</th>
+                                    <td>${{ i.mktPrice }}</td>
+                                    <td>{{ i.quantity }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
                         </table>
                     </div>
                 </div>
                 <div class="card hover-lift rounded-4 flex-fill">
                     <div class="card-body">
-                        <h5 class="card-title">Available Stock</h5>
-                        <p class="card-text">Will show new stocks added.</p>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Ticker</th>
+                                    <th scope="col">Mkt Price</th>
+                                    <th scope="col">Init Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <h5 class="title">Available Stock</h5>
+                                {% for i in stock %}
+                                    <tr>
+                                        <th scope="row">{{ i.ticker }}</th>
+                                        <td>${{ i.currentMktPrice }}</td>
+                                        <td>${{ i.initStockPrice }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                         <h5 class="title">Balance</h5>
                         <p class="card-text"><b>${{ current_user.availableFunds }}</b></p>                            
                     </div>

@@ -30,14 +30,12 @@
                             <li><a class="nav-link" href="{{ url_for('withdrawFunds') }}"><button class="dropdown-item" type="button">Withdraw</button></a></li>
                         </ul>
                     </div>
-                    
-                    <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                    <a class="btn btn-outline-light" href="{{ url_for('signIn') }}">Sign in</a>
-                    <li class="nav-item">
-                    <a class="btn btn-outline-light" href="{{ url_for('logout') }}">Sign out</a>
-
                 </ul>
+                    
+            <ul class="navbar-nav ms-auto me-5">
+                <li class="nav-item">
+                <a class="nav-link text-light" href="{{ url_for('logout') }}">Sign out</a>
+            </ul>
             </div>
             </div>
         </nav>

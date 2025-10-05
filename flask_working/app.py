@@ -189,7 +189,49 @@ def load_user(user_id):
 @app.route('/')
 @login_required  # Restricts access to authenticated users only
 def home():
-    return render_template("home.html")
+    if current_user.role == "user":
+        stock = (
+            StockInventory.query.with_entities(
+                StockInventory.ticker,
+                StockInventory.currentMktPrice,
+                StockInventory.initStockPrice
+            )
+            .order_by(StockInventory.ticker)
+            .limit(3)
+            .all()
+        )
+        portfolio = (
+            Portfolio.query.with_entities(
+                Portfolio.ticker,
+                Portfolio.mktPrice,
+                Portfolio.quantity
+            )
+            .filter_by(userId=current_user.userId)
+            .order_by(Portfolio.ticker)
+            .limit(5)
+            .all()
+        )
+        return render_template("home.html", stock=stock, portfolio=portfolio)
+    else:
+        user = (
+            User.query.with_entities(
+                User.fullName,
+                User.email,
+                User.customerAccountNumber,
+                User.availableFunds
+            )
+        )
+        stock = (
+            StockInventory.query.with_entities(
+                StockInventory.ticker,
+                StockInventory.quantity,
+                StockInventory.initStockPrice,
+                StockInventory.currentMktPrice
+            )
+            .order_by(StockInventory.createdAt)
+            .all()
+        )
+        return render_template("home.html", user=user, stock=stock)
 
 # USER AUTHENTICATION----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -355,7 +397,7 @@ def buyStock():
         quantity = request.form.get("quantity")
         amt = stock.currentMktPrice * float(quantity)
         # Call Withdraw
-        withdraw_action(amt)
+        withdraw_action(amt, commit=False)
          # Update Order History
         order = OrderHistory(
             stockId=stock.stockId,
@@ -384,7 +426,7 @@ def buyStock():
             updatedAt = datetime.datetime.now()
         )
         db.session.add(portfolio)
-        db.session.flush()
+        db.session.commit()
         return redirect(url_for("home"))
     
     return render_template('buy_stock.html')
@@ -479,7 +521,7 @@ def withdrawFunds():
         return redirect(url_for("home"))
     return render_template("withdraw.html")
 
-def withdraw_action(amount):
+def withdraw_action(amount, commit=True):
     withdraw = FinancialTransaction(
             customerAccountNumber = current_user.customerAccountNumber,
             amount=amount,
@@ -491,7 +533,8 @@ def withdraw_action(amount):
     current_user.updatedAt = datetime.datetime.now()
     
     db.session.add(withdraw)
-    db.session.commit()
+    if commit == True:
+        db.session.commit()
 
 # Stock page Route
 @app.route('/home/stock', methods=['GET', 'POST'])
