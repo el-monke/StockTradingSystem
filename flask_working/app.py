@@ -146,7 +146,7 @@ class Exception(db.Model):
     adminId = db.Column(db.Integer, ForeignKey("admin.adminId"))
     # Attributes
     reason = db.Column(db.String(255))
-    holidayDate = db.Column(db.String(25))
+    holidayDate = db.Column(db.DateTime)
     createdAt = db.Column(db.DateTime, nullable=False)
     updatedAt = db.Column(db.DateTime, nullable=False)
 
@@ -160,10 +160,10 @@ class WorkingDay(db.Model):
     adminId = db.Column(db.Integer, ForeignKey("admin.adminId"))
     # Attributes
     dayOfWeek = db.Column(db.String(3))
-    startTime = db.Column(db.String(25))
-    endTime = db.Column(db.String(25))
-    createdAt = db.Column(db.String(25))
-    updatedAt = db.Column(db.String(25))
+    startTime = db.Column(db.Time())
+    endTime = db.Column(db.Time())
+    createdAt = db.Column(db.DateTime, nullable=False)
+    updatedAt = db.Column(db.DateTime, nullable=False)
 
     def get_id(self):
         return str(self.workingDayId)
@@ -310,79 +310,6 @@ def logout():
     return redirect(url_for("signIn"))
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# CRUD FUNCTIONS - WORK IN PROGRESS
-# CREATE USER -> CREATE CUSTOMER
-#@app.route('/createaccount', methods=["GET", "POST"])
-#def createaccount():
-    #if request.method == "POST":
-        #firstname = request.form.get("firstname", "").strip()
-        #lastname = request.form.get("lastname", "").strip()
-        #email = request.form.get("email", "").strip()
-        #password = request.form.get("password", "")
-        #confpassword = request.form.get("confpassword", "")
-
-        #if not firstname or not lastname or not email or not password or not confpassword:
-            #flash("All fields are required", "error")
-            #return redirect(url_for("createaccount"))
-        #if password != confpassword:
-            #flash("Passwords do not match", "error")
-            #return redirect(url_for("createaccount"))
-
-        #fullname = f"{firstname} {lastname}".strip()
-        # minimal, simple account number; consider a real generator later
-        #account_number = uuid.uuid4().hex[:12].upper()
-
-        #new_customer = Customer(
-            #fullname=fullname,
-            #email=email,
-            #customerAccountNumber=account_number,
-            #hashedPassword=password,   # TODO: replace with a real hash
-            #availableFunds=0.0
-        #)
-        #db.session.add(new_customer)
-        #db.session.commit()
-
-        #flash("Account created successfully")
-        #return redirect(url_for("signin"))
-    #return render_template("createaccount.html")
-
-# READ
-#@app.route('/read_user/<int:user_id>')
-#def read_user(user_id):
-    #customer = Customer.query.get_or_404(user_id)
-    #return f"Customer Details: ID: {customer.customerId}, Fullname: {customer.fullname}, Email: {customer.email}"
-
-# UPDATE (update fullname & email)
-#@app.route('/update_user/<int:user_id>/<path:fullname>/<path:email>')
-#def update_user(user_id, fullname, email):
-    #customer = Customer.query.get_or_404(user_id)
-    #if not fullname or not email:
-        #flash('Both fullname and email are required!', 'error')
-        #return redirect(url_for('index'))
-
-    #customer.fullname = fullname
-    #customer.email = email
-
-    #try:
-        #db.session.commit()
-        #flash(f'Customer {customer.customerId} updated successfully!', 'success')
-    #except Exception as e:
-        #db.session.rollback()
-        #flash(f'Error updating customer: {str(e)}', 'error')
-    #return redirect(url_for('index'))
-
-# DELETE
-#@app.route('/delete_user/<int:user_id>')
-#def delete_user(user_id):
-    #customer = Customer.query.get_or_404(user_id)
-    #try:
-        #db.session.delete(customer)
-        #db.session.commit()
-        #flash(f'Customer {customer.customerId} deleted successfully!', 'success')
-    #except Exception as e:
-        #db.session.rollback()
-        #flash(f'Error deleting customer: {str(e)}', 'error')
-    #return redirect(url_for('index'))
 
 # ------------------------------------------------------------------------------------------------------
 
@@ -632,34 +559,110 @@ def stock():
 @admin_required
 def createStock():
     if request.method == "POST":
-        company = Company(
-            name=request.form.get("companyName"),
-            description=request.form.get("companyDesc"),
-            stockTotalQty=request.form.get("totalQuantity"),
-            ticker=request.form.get("ticker"),
-            currentMktPrice=request.form.get("currentMktPrice"),
-            createdAt=datetime.datetime.now(),
-            updatedAt=datetime.datetime.now()
+        addCompany(
+            request.form.get("companyName"),
+            request.form.get("companyDesc"),
+            request.form.get("totalQuantity"),
+            request.form.get("ticker"),
+            request.form.get("currentMktPrice"),
+            commit=False
         )
-
-        db.session.add(company)
         db.session.flush()
-
-        stock = StockInventory(
-            name=request.form.get("companyName"),
-            companyId=company.companyId,
-            adminId=current_user.adminId,
-            ticker=request.form.get("ticker"),
-            quantity=request.form.get("quantity"),
-            initStockPrice=request.form.get("initStockPrice"),
-            currentMktPrice=request.form.get("currentMktPrice"),
-            createdAt = datetime.datetime.now(),
-            updatedAt = datetime.datetime.now()
+        addStockInventory(
+            request.form.get("companyName"),
+            request.form.get("ticker"),
+            request.form.get("totalQuantity"),
+            request.form.get("initStockPrice"),
+            request.form.get("currentMktPrice"),
+            commit=False
         )
-        db.session.add(stock)
         db.session.commit()
         return redirect(url_for("home"))
     return render_template("create_stock.html")
+
+def addCompany(companyName, companyDesc, totalQuantity, ticker, currentMktPrice, commit=True):
+    company = Company(
+            name=companyName,
+            description=companyDesc,
+            stockTotalQty=totalQuantity,
+            ticker=ticker,
+            currentMktPrice=currentMktPrice,
+            createdAt=datetime.datetime.now(),
+            updatedAt=datetime.datetime.now()
+    )
+
+    db.session.add(company)
+    if commit == True:
+        db.session.commit()
+
+def addStockInventory(companyName, ticker, quantity, initStockPrice, currentMktPrice, commit=True):
+    company = Company.query.filter_by(ticker=ticker).first()
+    
+    stock = StockInventory(
+        companyId=company.companyId,
+        adminId=current_user.adminId,
+        name=companyName,
+        ticker=ticker,
+        quantity=quantity,
+        initStockPrice=initStockPrice,
+        currentMktPrice=currentMktPrice,
+        createdAt=datetime.datetime.now(),
+        updatedAt=datetime.datetime.now()
+    )
+
+    db.session.add(stock)
+    if commit == True:
+        db.session.commit()
+
+# Change Mkt Hours Route
+@app.route('/admin/changemkthrs', methods=["GET", "POST"])
+@login_required
+@admin_required
+def changeMktHrs():
+    if request.method == "POST":
+        startHrs = request.form.get("startTime")
+        endHrs = request.form.get("endTime")
+        # Convert str to time
+        start = datetime.datetime.strptime(startHrs.strip(), "%H:%M").time()
+        end = datetime.datetime.strptime(endHrs.strip(), "%H:%M").time()
+        # Update DB
+        hrs = WorkingDay(
+            adminId = current_user.adminId,
+            startTime = start,
+            endTime = end,
+            createdAt = datetime.datetime.now(),
+            updatedAt = datetime.datetime.now()
+        )
+
+        db.session.add(hrs)
+        db.session.commit()
+
+        return redirect(url_for("home"))
+    return render_template("change_mkt_hrs.html")
+
+# Change Mkt Schedule Route
+@app.route('/admin/changemktschedule', methods=["GET","POST"])
+@login_required
+@admin_required
+def changeMktSchedule():
+    if request.method == "POST":
+        holidayForm = request.form.get("holiday")
+        holidayDT = datetime.datetime.strptime(holidayForm.strip(), "%Y-%m-%d")
+
+        # Update DB
+        holiday = Exception(
+            adminId = current_user.adminId,
+            reason=request.form.get("reason"),
+            holidayDate=holidayDT,
+            createdAt = datetime.datetime.now(),
+            updatedAt = datetime.datetime.now()
+        )
+
+        db.session.add(holiday)
+        db.session.commit()
+
+        return redirect(url_for("home"))
+    return render_template("change_mkt_schedule.html")
 
 if __name__ == "__main__":
     app.run(debug=True)
