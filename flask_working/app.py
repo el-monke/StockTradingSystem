@@ -461,6 +461,10 @@ def withdraw_action(amount, commit=True):
     db.session.add(withdraw)
     if commit == True:
         db.session.commit()
+        
+@app.route('/home/history', methods=['GET'])
+def orderHistory():
+    return render_template("order_history.html")
 
 # Stock page Route
 @app.route('/home/stock', methods=['GET', 'POST'])
