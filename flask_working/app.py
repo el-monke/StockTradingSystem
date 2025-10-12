@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, url_for, flash, redirect
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import ForeignKey
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask import jsonify
 from flask_bcrypt import Bcrypt
 from functools import wraps # For Admin only routes
 import datetime
@@ -9,13 +10,16 @@ import uuid
 from flask_wtf import FlaskForm
 from wtforms import StringField, IntegerField, DecimalField, SubmitField
 from wtforms.validators import DataRequired, NumberRange
+
 from decimal import Decimal
 #pip install WTForm
+import random
+from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 # DATABASE -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password@localhost/sts_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Sandwich13!!!@localhost/sts_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your-secret-key'
 
@@ -24,7 +28,25 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
+
 bcrypt = Bcrypt(app)
+
+# --- Real-Time Stock Price Fluctuation ---
+def fluctuate_stock_prices():
+    with app.app_context():
+        stocks = StockInventory.query.all()
+        for stock in stocks:
+            # Simulate price change: random walk
+            change = random.uniform(-0.5, 0.5)  # Change by up to ±0.5
+            new_price = max(0.01, stock.currentMktPrice + change)
+            stock.currentMktPrice = round(new_price, 2)
+            stock.updatedAt = datetime.datetime.now()
+        db.session.commit()
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(fluctuate_stock_prices, 'interval', seconds=10)
+scheduler.start()
+# --- End Real-Time Stock Price Fluctuation ---
 
 # Define User model
 class User(UserMixin, db.Model):
@@ -231,6 +253,22 @@ def home():
             .all()
         )
         return render_template("home.html", user=user, stock=stock)
+
+# API route for AJAX stock price updates
+@app.route('/api/stock_prices')
+@login_required
+def api_stock_prices():
+    stocks = StockInventory.query.with_entities(
+        StockInventory.ticker,
+        StockInventory.quantity,
+        StockInventory.initStockPrice,
+        StockInventory.currentMktPrice
+    ).order_by(StockInventory.ticker).all()
+    result = [
+        {"ticker": s.ticker, "quantity": s.quantity, "initStockPrice": s.initStockPrice, "currentMktPrice": s.currentMktPrice}
+        for s in stocks
+    ]
+    return jsonify(result)
 
 # USER AUTHENTICATION----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
