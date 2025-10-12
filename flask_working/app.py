@@ -10,16 +10,18 @@ import uuid
 from flask_wtf import FlaskForm
 from wtforms import StringField, IntegerField, DecimalField, SubmitField
 from wtforms.validators import DataRequired, NumberRange
-
+from datetime import time as dtime, date as ddate
+from sqlalchemy import func
 from decimal import Decimal
-#pip install WTForm
 import random
 from apscheduler.schedulers.background import BackgroundScheduler
+
+
 
 app = Flask(__name__)
 # DATABASE -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Sandwich13!!!@localhost/sts_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password123@localhost/sts_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your-secret-key'
 
@@ -31,7 +33,7 @@ login_manager.init_app(app)
 
 bcrypt = Bcrypt(app)
 
-# --- Real-Time Stock Price Fluctuation ---
+# Stock Price Fluctuation
 def fluctuate_stock_prices():
     with app.app_context():
         stocks = StockInventory.query.all()
@@ -46,7 +48,7 @@ def fluctuate_stock_prices():
 scheduler = BackgroundScheduler()
 scheduler.add_job(fluctuate_stock_prices, 'interval', seconds=10)
 scheduler.start()
-# --- End Real-Time Stock Price Fluctuation ---
+# End Stock Price Fluctuation
 
 # Define User model
 class User(UserMixin, db.Model):
@@ -193,6 +195,30 @@ class WorkingDay(db.Model):
 # Initialize database
 with app.app_context():
     db.create_all()
+
+# Return start / end time from workingday default 0730-16
+def get_current_hours():
+    hrs = WorkingDay.query.order_by(WorkingDay.updatedAt.desc()).first()
+    if not hrs or not (hrs.startTime and hrs.endTime):
+        return dtime(7, 30), dtime(16, 0)  # default hours
+    return hrs.startTime, hrs.endTime
+
+def is_holiday(day: ddate = None) -> bool:
+    day = day or ddate.today()
+    return db.session.query(Exception.exceptionId).filter(
+        func.date(Exception.holidayDate) == day
+    ).first() is not None
+
+def is_market_open(now: datetime.datetime = None) -> bool:
+    now = now or datetime.datetime.now()
+    if is_holiday(now.date()):
+        return False
+    start, end = get_current_hours()
+    time = now.time()
+    if start <= end:
+        return start <= time <= end
+    return not (end < time < start)
+
 # END DATABASE -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # User loader
@@ -210,6 +236,11 @@ def load_user(user_id):
 @app.route('/')
 @login_required  # Restricts access to authenticated users only
 def home():
+    
+    market_open = is_market_open()
+    start, end = get_current_hours()
+    holiday_today = is_holiday()
+
     if current_user.role == "user":
         stock = (
             StockInventory.query.with_entities(
@@ -232,29 +263,48 @@ def home():
             .limit(5)
             .all()
         )
-        return render_template("home.html", stock=stock, portfolio=portfolio)
-    else:
-        user = (
-            User.query.with_entities(
-                User.fullName,
-                User.email,
-                User.customerAccountNumber,
-                User.availableFunds
-            )
+        return render_template(
+            "home.html",
+            stock=stock,
+            portfolio=portfolio,
+            market_open=market_open,
+            market_start=start,
+            market_end=end,
+            holiday=holiday_today
         )
-        stock = (
-            StockInventory.query.with_entities(
-                StockInventory.ticker,
-                StockInventory.quantity,
-                StockInventory.initStockPrice,
-                StockInventory.currentMktPrice
-            )
-            .order_by(StockInventory.createdAt)
-            .all()
-        )
-        return render_template("home.html", user=user, stock=stock)
 
-# API route for AJAX stock price updates
+    # Admin view
+    users = (
+        User.query.with_entities(
+            User.fullName,
+            User.email,
+            User.customerAccountNumber,
+            User.availableFunds
+        )
+        .order_by(User.createdAt.desc())
+        .all()
+    )
+    stock = (
+        StockInventory.query.with_entities(
+            StockInventory.ticker,
+            StockInventory.quantity,
+            StockInventory.initStockPrice,
+            StockInventory.currentMktPrice
+        )
+        .order_by(StockInventory.createdAt)
+        .all()
+    )
+    return render_template(
+        "home.html",
+        user=users,
+        stock=stock,
+        market_open=market_open,
+        market_start=start,
+        market_end=end,
+        holiday=holiday_today
+    )
+
+# API route for stock price updates
 @app.route('/api/stock_prices')
 @login_required
 def api_stock_prices():
@@ -351,18 +401,25 @@ def logout():
 
 # ------------------------------------------------------------------------------------------------------
 
-# Buy Stock Route; Need Logic
+# Buy Stock Route
 @app.route('/home/buystock', methods=['GET', 'POST'])
 def buyStock():
+#logic for open / close market on stock pages
+    market_open = is_market_open()
+    start, end = get_current_hours()
+    holiday_today = is_holiday()
+
     if request.method == "POST":
-        # Read Sheet
+        if not is_market_open():
+            flash("Market is closed. Buy orders are disabled right now.", "warning")
+            return redirect(url_for("buyStock"))
+
         ticker = request.form.get("ticker")
         stock = StockInventory.query.filter_by(ticker=ticker).first()
         quantity = request.form.get("quantity")
         amt = stock.currentMktPrice * float(quantity)
-        # Call Withdraw
+
         withdraw_action(amt, commit=False)
-         # Update Order History
         order = OrderHistory(
             stockId=stock.stockId,
             userId=current_user.userId,
@@ -373,40 +430,51 @@ def buyStock():
             status="OPEN",
             companyName=stock.name,
             ticker=stock.ticker,
-            createdAt = datetime.datetime.now(),
-            updatedAt = datetime.datetime.now()
+            createdAt=datetime.datetime.now(),
+            updatedAt=datetime.datetime.now()
         )
         db.session.add(order)
         db.session.flush()
-        # Update Portfolio
         portfolio = Portfolio(
             userId=current_user.userId,
-            orderId= order.orderId,
+            orderId=order.orderId,
             stockName=stock.name,
             ticker=stock.ticker,
             quantity=quantity,
             mktPrice=stock.currentMktPrice,
-            createdAt = datetime.datetime.now(),
-            updatedAt = datetime.datetime.now()
+            createdAt=datetime.datetime.now(),
+            updatedAt=datetime.datetime.now()
         )
         db.session.add(portfolio)
         db.session.commit()
         return redirect(url_for("home"))
-    
-    return render_template('buy_stock.html')
 
-# Sell Stock Route; Need Logic
+    market_open = is_market_open()
+    start, end = get_current_hours()
+    return render_template('buy_stock.html',
+                           market_open=market_open,
+                           market_start=start,
+                           market_end=end)
+
+# Sell Stock Route
 @app.route('/home/sellstock', methods=['GET', 'POST'])
 def sellStock():
+
+    market_open = is_market_open()
+    start, end = get_current_hours()
+    holiday_today = is_holiday()
+
     if request.method == "POST":
-        # Read Sheet
+        if not is_market_open():
+            flash("Market is closed. Sell orders are disabled right now.", "warning")
+            return redirect(url_for("sellStock"))
+
         ticker = request.form.get("ticker")
         stock = StockInventory.query.filter_by(ticker=ticker).first()
         quantity = request.form.get("quantity")
         amt = stock.currentMktPrice * float(quantity)
-        # Call Deposit
+
         deposit_action(amt)
-        # Update Order History
         order = OrderHistory(
             stockId=stock.stockId,
             userId=current_user.userId,
@@ -417,26 +485,31 @@ def sellStock():
             status="OPEN",
             companyName=stock.name,
             ticker=stock.ticker,
-            createdAt = datetime.datetime.now(),
-            updatedAt = datetime.datetime.now()
+            createdAt=datetime.datetime.now(),
+            updatedAt=datetime.datetime.now()
         )
         db.session.add(order)
         db.session.flush()
-        # Update Portfolio
         portfolio = Portfolio(
             userId=current_user.userId,
-            orderId= order.orderId,
+            orderId=order.orderId,
             stockName=stock.name,
             ticker=stock.ticker,
             quantity=quantity,
             mktPrice=stock.currentMktPrice,
-            createdAt = datetime.datetime.now(),
-            updatedAt = datetime.datetime.now()
+            createdAt=datetime.datetime.now(),
+            updatedAt=datetime.datetime.now()
         )
         db.session.add(portfolio)
         db.session.flush()
         return redirect(url_for("home"))
-    return render_template('sell_stock.html')
+
+    market_open = is_market_open()
+    start, end = get_current_hours()
+    return render_template('sell_stock.html',
+                           market_open=market_open,
+                           market_start=start,
+                           market_end=end)
 
 # Deposit Funds Route
 @app.route('/home/deposit', methods=["GET", "POST"])
@@ -444,7 +517,7 @@ def depositFunds():
     if request.method == "POST":
         amt = request.form.get("amount")
         deposit_action(amt)
-        # Call Portfolio for first transaction
+        # Call Portfolio
         if FinancialTransaction.query.filter_by(customerAccountNumber=current_user.customerAccountNumber).first() == None:
             createPortfolio(current_user.userId)
 
@@ -548,18 +621,25 @@ def get_live_price(symbol: str) -> Decimal:
 @app.route("/stock", methods=["GET", "POST"])
 @login_required
 def stock():
+    market_open = is_market_open()
+    start, end = get_current_hours()
+    holiday_today = is_holiday()
+
     form = StockForm()
 
-    # Add info to flask form
     if form.validate_on_submit():
+        if not market_open:
+            flash("Market is closed. Adding to portfolio is disabled right now.", "warning")
+            return redirect(url_for("stock"))
+
         now = datetime.datetime.now()
         p = Portfolio(
-            customerId=current_user.userId,
-            orderId=None,                 
+            userId=current_user.userId,
+            orderId=None,
             stockName=form.ticker.data.upper(),
             ticker=form.ticker.data.upper(),
             quantity=int(form.quantity.data),
-            mktPrice=float(form.avg_cost.data), 
+            mktPrice=float(form.avg_cost.data),
             createdAt=now,
             updatedAt=now
         )
@@ -568,10 +648,8 @@ def stock():
         flash(f"Added {p.ticker} x{p.quantity} at ${p.mktPrice:.2f}", "success")
         return redirect(url_for("stock"))
 
-    # Rows for portfolio
     rows = []
-    holdings = Portfolio.query.filter_by(customerId=current_user.userId).order_by(Portfolio.ticker.asc()).all()
-
+    holdings = Portfolio.query.filter_by(userId=current_user.userId).order_by(Portfolio.ticker.asc()).all()
     for h in holdings:
         current = get_live_price(h.ticker)
         qty = int(h.quantity or 0)
@@ -579,7 +657,7 @@ def stock():
         position_value = current * qty
         profit_loss = position_value - (avg_cost * qty)
         rows.append({
-            "name": h.ticker,                  
+            "name": h.ticker,
             "quantity": qty,
             "avg_cost": avg_cost,
             "current_price": current,
@@ -593,7 +671,16 @@ def stock():
     }
     totals["pnl"] = totals["value"] - totals["cost"]
 
-    return render_template("stock.html", form=form, rows=rows, totals=totals)
+    return render_template(
+        "stock.html",
+        form=form,
+        rows=rows,
+        totals=totals,
+        market_open=market_open,
+        market_start=start,
+        market_end=end,
+        holiday=holiday_today
+    )
 
 # Create Stock Route
 @app.route('/createstock', methods=["GET", "POST"])
@@ -664,21 +751,19 @@ def changeMktHrs():
     if request.method == "POST":
         startHrs = request.form.get("startTime")
         endHrs = request.form.get("endTime")
-        # Convert str to time
         start = datetime.datetime.strptime(startHrs.strip(), "%H:%M").time()
         end = datetime.datetime.strptime(endHrs.strip(), "%H:%M").time()
-        # Update DB
         hrs = WorkingDay(
-            adminId = current_user.adminId,
-            startTime = start,
-            endTime = end,
-            createdAt = datetime.datetime.now(),
-            updatedAt = datetime.datetime.now()
+            adminId=current_user.adminId,
+            dayOfWeek=datetime.datetime.now().strftime("%a"),  #Mon-Sun
+            startTime=start,
+            endTime=end,
+            createdAt=datetime.datetime.now(),
+            updatedAt=datetime.datetime.now()
         )
-
         db.session.add(hrs)
         db.session.commit()
-
+        flash("Market hours updated.", "success")
         return redirect(url_for("home"))
     return render_template("change_mkt_hrs.html")
 
