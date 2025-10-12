@@ -144,22 +144,22 @@
                                 {% endfor %}
                             </tbody>
                         </table>
-                        <!-- Live update for 'Available Stock' table: fetches latest prices every 5 seconds -->
+                        
                         <script>
                         function updateAvailableStockPrices() {
-                            fetch('/api/stock_prices') // Calls Flask API route added for AJAX updates
+                            fetch('/api/stock_prices') 
                                 .then(response => response.json())
                                 .then(data => {
                                     const tbody = document.getElementById('available-stock-table-body');
                                     if (!tbody) return;
                                     tbody.innerHTML = '';
-                                    // Rebuilds table rows with latest prices
+                                   
                                     data.forEach(row => {
                                         tbody.innerHTML += `<tr><th scope="row">${row.ticker}</th><td>$${row.currentMktPrice}</td><td>$${row.initStockPrice}</td></tr>`;
                                     });
                                 });
                         }
-                        // Repeat every 5 seconds for real-time effect
+                        
                         setInterval(updateAvailableStockPrices, 5000);
                         </script>
                         </table>
