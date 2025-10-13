@@ -409,10 +409,15 @@ def buyStock():
     start, end = get_current_hours()
     holiday_today = is_holiday()
 
+    if holiday_today:
+        market_open = False
+
     if request.method == "POST":
-        if not is_market_open():
+        if holiday_today:
+            flash("Market is closed today due to a holiday. Buy orders are disabled.", "warning")
+        else:
             flash("Market is closed. Buy orders are disabled right now.", "warning")
-            return redirect(url_for("buyStock"))
+        return redirect(url_for("buyStock"))
 
         ticker = request.form.get("ticker")
         stock = StockInventory.query.filter_by(ticker=ticker).first()
@@ -464,10 +469,15 @@ def sellStock():
     start, end = get_current_hours()
     holiday_today = is_holiday()
 
+    if holiday_today:
+        market_open = False
+
     if request.method == "POST":
-        if not is_market_open():
-            flash("Market is closed. Sell orders are disabled right now.", "warning")
-            return redirect(url_for("sellStock"))
+        if holiday_today:
+            flash("Market is closed today due to a holiday. Buy orders are disabled.", "warning")
+        else:
+            flash("Market is closed. Buy orders are disabled right now.", "warning")
+        return redirect(url_for("buyStock"))
 
         ticker = request.form.get("ticker")
         stock = StockInventory.query.filter_by(ticker=ticker).first()
