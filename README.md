@@ -1,2 +1,3 @@
 # StockTradingSystem
-A system for training stockbrokers on buying and selling stock.
+A collaboration group project for IFT 401 Capstone for buying and selling stocks
+using Flask, Python, and HTML
