@@ -19,7 +19,13 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('home') }}">Portfolio</a></li>
-                    <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('stock') }}">Stocks</a></li>
+                    <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('stock') }}">View Stock</a></li>
+                    <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('createStock') }}">Create stock</a></li>
+                    <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('changeMktHrs') }}">Market Hours</a></li>
+                    <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('changeMktSchedule') }}">Market Calendar</a></li>
+
+                   
+                    
 
                     <div class="dropdown">
                         <a class="nav-link dropdown-toggle text-light" type="button" data-bs-toggle="dropdown">Transact</a>
