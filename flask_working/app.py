@@ -33,7 +33,7 @@ login_manager.init_app(app)
 
 bcrypt = Bcrypt(app)
 
-# Stock Price Fluctuation
+# --- Real-Time Stock Price Fluctuation ---
 def fluctuate_stock_prices():
     with app.app_context():
         stocks = StockInventory.query.all()
@@ -48,7 +48,7 @@ def fluctuate_stock_prices():
 scheduler = BackgroundScheduler()
 scheduler.add_job(fluctuate_stock_prices, 'interval', seconds=10)
 scheduler.start()
-# End Stock Price Fluctuation
+# --- End Real-Time Stock Price Fluctuation ---
 
 # Define User model
 class User(UserMixin, db.Model):
@@ -399,12 +399,11 @@ def logout():
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# ------------------------------------------------------------------------------------------------------
 
 # Buy Stock Route
 @app.route('/home/buystock', methods=['GET', 'POST'])
 def buyStock():
-#logic for open / close market on stock pages
+
     market_open = is_market_open()
     start, end = get_current_hours()
     holiday_today = is_holiday()
@@ -414,10 +413,8 @@ def buyStock():
 
     if request.method == "POST":
         if holiday_today:
-            flash("Market is closed today due to a holiday. Buy orders are disabled.", "warning")
-        else:
             flash("Market is closed. Buy orders are disabled right now.", "warning")
-        return redirect(url_for("buyStock"))
+            return redirect(url_for("buyStock"))
 
         ticker = request.form.get("ticker")
         stock = StockInventory.query.filter_by(ticker=ticker).first()
@@ -474,10 +471,8 @@ def sellStock():
 
     if request.method == "POST":
         if holiday_today:
-            flash("Market is closed today due to a holiday. Buy orders are disabled.", "warning")
-        else:
-            flash("Market is closed. Buy orders are disabled right now.", "warning")
-        return redirect(url_for("buyStock"))
+            flash("Market is closed. Sell orders are disabled right now.", "warning")
+            return redirect(url_for("sellStock"))
 
         ticker = request.form.get("ticker")
         stock = StockInventory.query.filter_by(ticker=ticker).first()
@@ -592,7 +587,6 @@ def orderHistory():
 def stocks():
     return render_template("stock.html")
 
-# Stock page Route - WORK IN PROGRESS
 class StockForm(FlaskForm):
     ticker = StringField("Ticker", validators=[DataRequired()])  # string for stocks
     quantity = IntegerField("Quantity", validators=[DataRequired(), NumberRange(min=1)])
@@ -800,6 +794,52 @@ def changeMktSchedule():
 
         return redirect(url_for("home"))
     return render_template("change_mkt_schedule.html")
+
+
+def clear_today_holiday():
+    today = ddate.today()
+    
+    (db.session.query(Exception)
+        .filter(func.date(Exception.holidayDate) == today)
+        .delete(synchronize_session=False))
+    db.session.commit()
+
+def upsert_workingday_for_now(until_time: datetime.time):
+    now = datetime.datetime.now()
+    wd = WorkingDay(
+        adminId=getattr(current_user, "adminId", None),
+        dayOfWeek=now.strftime("%a"),
+        startTime=now.time(),         
+        endTime=until_time,            
+        createdAt=now,
+        updatedAt=now
+    )
+    db.session.add(wd)
+    db.session.commit()
+
+# New admin route to reopen
+@app.route('/admin/reopen_market', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def reopen_market():
+    if request.method == 'POST':
+        if request.form.get("clear_holiday") == "on":
+            clear_today_holiday()
+
+        end_txt = (request.form.get("endTime") or "16:00").strip()
+        try:
+            end_time = datetime.datetime.strptime(end_txt, "%H:%M").time()
+        except ValueError:
+            flash("Invalid end time. Use HH:MM (24h).", "danger")
+            return redirect(url_for("reopen_market"))
+
+        upsert_workingday_for_now(end_time)
+        flash("Market reopened for today.", "success")
+        return redirect(url_for("home"))
+
+    return redirect(url_for("changeMktHrs"))
+
+
 
 if __name__ == "__main__":
     app.run(debug=True)
