@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Home{% endblock %}
 {% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ 'danger' if category == 'error' else category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
     {% if current_user.is_authenticated %}
         {% if current_user.role == "admin" %}
         <style>
@@ -20,6 +27,7 @@
                                     <th scope="col">Email</th>
                                     <th scope="col">Account Number</th>
                                     <th scope="col">Balance</th>
+                                    <th scope="col">Update/Delete</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -29,6 +37,13 @@
                                     <td>{{ i.email }}</td>
                                     <td>{{ i.customerAccountNumber }}</td>
                                     <td>${{ i.availableFunds }}</td>
+                                    <td class="d-flex gap-2">
+                                        <a class="btn btn-sm btn-primary" href="{{ url_for('update_user', user_id=i.userId) }}" style="background-color: #FFC627;color: #F5F5F5;border:none;">Update</a>
+                                        <form method="POST" action="{{ url_for('delete_user', user_id=i.userId)}}">
+                                            <button type="submit" class="btn btn-sm btn-primary" style="background-color: #8C1D40;color: #F5F5F5;border:none;">Delete</button>
+                                        </form>
+                                    </td>
+                                    
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -94,7 +109,37 @@
                     <div class="card hover-lift rounded-4 h-100">
                         <div class="card-body">
                             <h5 class="card-title">{{ current_user.fullName }} - Dashboard</h5>
-                            <img src="{{ url_for('static', filename='graph.png')}}" class="img-fluid" style="margin-top: 10%;" alt="Placeholder graph">                            
+                            <div>
+                                <canvas id="userChart"></canvas>
+                            </div>
+                            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                            <script>
+                                const rows = {{ rows | tojson | safe }}
+
+                                const labels = rows.map(r => r.name);
+                                const cost = rows.map(r => r.cost);
+                                const profitLoss = rows.map(r => r.profit_loss);
+
+                                new Chart(document.getElementById("userChart"), {
+                                    type: "bar",
+                                    data: {
+                                        labels,
+                                        datasets: [
+                                            { label: "Cost", data: cost, stack: "s"},
+                                            { label: "Profit/Loss", data: profitLoss, stack: "s"}
+                                        ]
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        scales: {
+                                            x: { stacked: true },
+                                            y: { stacked: true,
+                                                beginAtZero: true
+                                            }
+                                        }
+                                    }
+                                });
+                            </script>                            
                         </div>
                     </div>
                 </div>

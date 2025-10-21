@@ -7,6 +7,7 @@ from flask_bcrypt import Bcrypt
 from functools import wraps # For Admin only routes
 import datetime
 import uuid
+import builtins
 from flask_wtf import FlaskForm
 from wtforms import StringField, IntegerField, DecimalField, SubmitField
 from wtforms.validators import DataRequired, NumberRange
@@ -21,7 +22,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 app = Flask(__name__)
 # DATABASE -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password123@localhost/sts_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password@localhost/sts_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your-secret-key'
 
@@ -263,10 +264,31 @@ def home():
             .limit(5)
             .all()
         )
+        # Logic for chart.js bar chart
+        holdings = {}
+        for ticker, mktPrice, quantity in portfolio:
+            qty = int(quantity)
+            d = holdings.setdefault(ticker, {"qty": 0, "cost": Decimal("0")})
+            d["qty"] += quantity
+            d["cost"] += Decimal(str(mktPrice)) * quantity
+
+        rows = []
+        for ticker, s in holdings.items():
+            currentPrice = get_live_price(ticker)
+            position = currentPrice * s["qty"]
+            pnl = position - s["cost"]
+
+            rows.append({
+                "name": ticker,
+                "cost": float(s["cost"]),
+                "profit_loss": float(pnl)
+            })
+
         return render_template(
             "home.html",
             stock=stock,
             portfolio=portfolio,
+            rows=rows,
             market_open=market_open,
             market_start=start,
             market_end=end,
@@ -276,6 +298,7 @@ def home():
     # Admin view
     users = (
         User.query.with_entities(
+            User.userId,
             User.fullName,
             User.email,
             User.customerAccountNumber,
@@ -396,6 +419,43 @@ def admin_required(f):
 def logout():
     logout_user()
     return redirect(url_for("signIn"))
+
+# UPDATE (update fullname & email)
+@app.route('/update_user/<int:user_id>', methods=["GET","POST"])
+def update_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if request.method == "POST":
+        user.fullName = request.form.get("fullName")
+        user.email = request.form.get("email")
+        user.availableFunds = request.form.get("availableFunds")
+        user.updatedAt = datetime.datetime.now()
+
+        try:
+            db.session.commit()
+            flash(f'User {user.userId} updated successfully!', 'success')
+            return redirect(url_for('home'))
+        except builtins.Exception as e:
+            db.session.rollback()
+            flash(f'Error updating user: {str(e)}', 'error')
+            return redirect(url_for('home'))
+    return render_template('update_user.html', user=user)
+
+# DELETE
+@app.route('/delete_user/<int:user_id>', methods=["POST"])
+def delete_user(user_id):
+    user = User.query.get_or_404(user_id)
+    try:
+        Portfolio.query.filter_by(userId=user.userId).delete()
+        OrderHistory.query.filter_by(userId=user.userId).delete()
+        FinancialTransaction.query.filter_by(customerAccountNumber=user.customerAccountNumber).delete()
+
+        db.session.delete(user)
+        db.session.commit()
+        flash(f'User {user.userId} deleted successfully!', 'success')
+    except builtins.Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting user: {str(e)}', 'error')
+    return redirect(url_for('home'))
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
