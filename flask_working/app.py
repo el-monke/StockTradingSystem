@@ -759,7 +759,7 @@ def changeMktHrs():
         end = datetime.datetime.strptime(endHrs.strip(), "%H:%M").time()
         hrs = WorkingDay(
             adminId=current_user.adminId,
-            dayOfWeek=datetime.datetime.now().strftime("%a"),  #Mon-Sun
+            dayOfWeek=datetime.datetime.now().strftime("%a"),
             startTime=start,
             endTime=end,
             createdAt=datetime.datetime.now(),
@@ -769,7 +769,10 @@ def changeMktHrs():
         db.session.commit()
         flash("Market hours updated.", "success")
         return redirect(url_for("home"))
+
+    
     return render_template("change_mkt_hrs.html")
+
 
 # Change Mkt Schedule Route
 @app.route('/admin/changemktschedule', methods=["GET","POST"])
@@ -779,45 +782,23 @@ def changeMktSchedule():
     if request.method == "POST":
         holidayForm = request.form.get("holiday")
         holidayDT = datetime.datetime.strptime(holidayForm.strip(), "%Y-%m-%d")
-
-        # Update DB
         holiday = Exception(
-            adminId = current_user.adminId,
+            adminId=current_user.adminId,
             reason=request.form.get("reason"),
             holidayDate=holidayDT,
-            createdAt = datetime.datetime.now(),
-            updatedAt = datetime.datetime.now()
+            createdAt=datetime.datetime.now(),
+            updatedAt=datetime.datetime.now()
         )
-
         db.session.add(holiday)
         db.session.commit()
-
+        flash("Holiday added.", "success")
         return redirect(url_for("home"))
-    return render_template("change_mkt_schedule.html")
 
-
-def clear_today_holiday():
-    today = ddate.today()
     
-    (db.session.query(Exception)
-        .filter(func.date(Exception.holidayDate) == today)
-        .delete(synchronize_session=False))
-    db.session.commit()
+    return render_template("change_mkt_hrs.html")
 
-def upsert_workingday_for_now(until_time: datetime.time):
-    now = datetime.datetime.now()
-    wd = WorkingDay(
-        adminId=getattr(current_user, "adminId", None),
-        dayOfWeek=now.strftime("%a"),
-        startTime=now.time(),         
-        endTime=until_time,            
-        createdAt=now,
-        updatedAt=now
-    )
-    db.session.add(wd)
-    db.session.commit()
 
-# New admin route to reopen
+# Reopen Market
 @app.route('/admin/reopen_market', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -831,13 +812,16 @@ def reopen_market():
             end_time = datetime.datetime.strptime(end_txt, "%H:%M").time()
         except ValueError:
             flash("Invalid end time. Use HH:MM (24h).", "danger")
-            return redirect(url_for("reopen_market"))
+    
+            return redirect(url_for("change_mkt__hrs"))
 
         upsert_workingday_for_now(end_time)
         flash("Market reopened for today.", "success")
         return redirect(url_for("home"))
 
-    return redirect(url_for("changeMktHrs"))
+    return redirect(url_for("change_mkt__hrs"))
+
+
 
 
 
