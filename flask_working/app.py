@@ -580,7 +580,10 @@ def withdraw_action(amount, commit=True):
         
 @app.route('/home/history', methods=['GET'])
 def orderHistory():
-    return render_template("order_history.html")
+
+    orders = OrderHistory.query.filter_by(userId=current_user.userId).order_by(OrderHistory.createdAt.desc()).all()
+    
+    return render_template("order_history.html", orders=orders)
 
 # Stock page Route
 @app.route('/home/stock', methods=['GET', 'POST'])
