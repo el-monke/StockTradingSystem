@@ -800,30 +800,70 @@ def changeMktSchedule():
     
     return render_template("change_mkt_hrs.html")
 
+def start_workingday(end_time: datetime.time):
+    now = datetime.datetime.now()
+    wd = WorkingDay(
+        adminId=getattr(current_user, "adminId", None),
+        dayOfWeek=now.strftime("%a"),
+        startTime=now.time().replace(microsecond=0),
+        endTime=end_time,
+        createdAt=now,
+        updatedAt=now
+    )
+    db.session.add(wd)
+    db.session.commit()
 
+def clear_today_holiday():
+    with app.app_context():
+        today = ddate.today()
+        (db.session.query(Exception)
+           .filter(func.date(Exception.holidayDate) == today)
+           .delete(synchronize_session=False))
+        db.session.commit()
+        
 # Reopen Market
 @app.route('/admin/reopen_market', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def reopen_market():
-    if request.method == 'POST':
-        if request.form.get("clear_holiday") == "on":
-            clear_today_holiday()
+    if request.form.get("clear_holiday") == "on":
+        clear_today_holiday()
 
-        end_txt = (request.form.get("endTime") or "16:00").strip()
+    end_txt = (request.form.get("endTime") or "").strip()
+    if end_txt:
         try:
             end_time = datetime.datetime.strptime(end_txt, "%H:%M").time()
         except ValueError:
             flash("Invalid end time. Use HH:MM (24h).", "danger")
-    
-            return redirect(url_for("change_mkt__hrs"))
+            return redirect(url_for("changeMktHrs"))
+    else:
+        _, fallback_end = get_current_hours()
+        end_time = fallback_end or dtime(16, 0)
 
-        upsert_workingday_for_now(end_time)
-        flash("Market reopened for today.", "success")
-        return redirect(url_for("home"))
+    start_workingday(end_time)
+    flash("Market reopened for today.", "success")
+    return redirect(url_for("home"))
 
-    return redirect(url_for("change_mkt__hrs"))
+def ensure_market_auto_reopen():
+    with app.app_context():
+        now = datetime.datetime.now()
+        if is_holiday(now.date()):
+            return
 
+        if not is_market_open(now):
+            _, fallback_end = get_current_hours()
+            end_time = fallback_end or dtime(16, 0)
+            start_workingday(end_time)
+
+scheduler.add_job(
+    ensure_market_auto_reopen,
+    'interval',
+    minutes=1,
+    id='auto_reopen',
+    replace_existing=True,
+    coalesce=True,
+    max_instances=1
+)
 
 
 
