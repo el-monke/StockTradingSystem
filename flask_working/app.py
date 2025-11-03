@@ -811,30 +811,96 @@ def addStockInventory(companyName, ticker, quantity, initStockPrice, currentMktP
         db.session.commit()
 
 # Change Mkt Hours Route
+Days_of_week = {
+    "mon": "Mon", "tue": "Tue", "wed": "Wed",
+    "thu": "Thu", "fri": "Fri", "sat": "Sat", "sun": "Sun"
+}
+
+def upsert_workingday(admin_id: int, day_code: str, start: datetime.time, end: datetime.time):
+    day_abbr = Days_of_week.get((day_code or "").lower())
+    if not day_abbr:
+        return
+    (WorkingDay.query
+        .filter_by(adminId=admin_id, dayOfWeek=day_abbr)
+        .delete(synchronize_session=False))
+    db.session.add(WorkingDay(
+        adminId=admin_id,
+        dayOfWeek=day_abbr,
+        startTime=start,
+        endTime=end,
+        createdAt=datetime.datetime.now(),
+        updatedAt=datetime.datetime.now()
+    ))
+
+def add_holiday(admin_id: int, date_: datetime.date, reason: str = ""):
+    db.session.add(Exception(
+        adminId=admin_id,
+        reason=(reason or "").strip(),
+        holidayDate=datetime.datetime.combine(date_, datetime.time(0,0)),
+        createdAt=datetime.datetime.now(),
+        updatedAt=datetime.datetime.now()
+    ))
+
+# --- Route ----------------------------------------------------------------
+
 @app.route('/admin/changemkthrs', methods=["GET", "POST"])
 @login_required
 @admin_required
 def changeMktHrs():
     if request.method == "POST":
-        startHrs = request.form.get("startTime")
-        endHrs = request.form.get("endTime")
-        start = datetime.datetime.strptime(startHrs.strip(), "%H:%M").time()
-        end = datetime.datetime.strptime(endHrs.strip(), "%H:%M").time()
-        hrs = WorkingDay(
-            adminId=current_user.adminId,
-            dayOfWeek=datetime.datetime.now().strftime("%a"),
-            startTime=start,
-            endTime=end,
-            createdAt=datetime.datetime.now(),
-            updatedAt=datetime.datetime.now()
-        )
-        db.session.add(hrs)
+        selected_date = (request.form.get("selected_date") or "").strip()
+        close_market = request.form.get("close_market") == "on"
+        close_reason = (request.form.get("close_reason") or "").strip()
+        selected_days = request.form.getlist("weekdays")
+
+        start_txt = (request.form.get("startTime") or "07:30").strip()
+        end_txt   = (request.form.get("endTime") or "16:00").strip()
+
+        
+        try:
+            start_time = datetime.datetime.strptime(start_txt, "%H:%M").time()
+            end_time   = datetime.datetime.strptime(end_txt,   "%H:%M").time()
+        except ValueError:
+            flash("Invalid time format. Use 24h HH:MM.", "danger")
+            return redirect(url_for("changeMktHrs"))
+
+        
+        if close_market:
+            if not selected_date:
+                flash("Choose a date to close the market.", "warning")
+                return redirect(url_for("changeMktHrs"))
+            day = datetime.datetime.strptime(selected_date, "%Y-%m-%d").date()
+            add_holiday(current_user.adminId, day, close_reason)
+            db.session.commit()
+            flash("Market closed for the selected date.", "success")
+            return redirect(url_for("home"))
+
+        
+        if not selected_days:
+            flash("Select at least one working day to apply hours.", "warning")
+            return redirect(url_for("changeMktHrs"))
+
+        for dcode in selected_days:
+            upsert_workingday(current_user.adminId, dcode, start_time, end_time)
         db.session.commit()
-        flash("Market hours updated.", "success")
+
+        flash("Working days and hours updated.", "success")
         return redirect(url_for("home"))
 
+    start, end = get_current_hours()
+    selected_days = [w.dayOfWeek.lower() for w in WorkingDay.query.with_entities(WorkingDay.dayOfWeek).distinct()]  # e.g., ["mon","tue"]
+    selected_days = [k for k,v in DAY_CODE_TO_ABBR.items() if v in {w.capitalize() for w in selected_days}]
+    return render_template(
+        "change_mkt_hrs.html",
+        selected_days=selected_days,
+        market_start=start.strftime("%H:%M"),
+        market_end=end.strftime("%H:%M")
+    )
+
+
     
-    return render_template("change_mkt_hrs.html")
+    selected_days = [w.dayOfWeek for w in WorkingDay.query.all()]
+    return render_template("change_mkt_hrs.html", selected_days=selected_days)
 
 
 # Change Mkt Schedule Route
@@ -860,70 +926,29 @@ def changeMktSchedule():
     
     return render_template("change_mkt_hrs.html")
 
-def start_workingday(end_time: datetime.time):
-    now = datetime.datetime.now()
-    wd = WorkingDay(
-        adminId=getattr(current_user, "adminId", None),
-        dayOfWeek=now.strftime("%a"),
-        startTime=now.time().replace(microsecond=0),
-        endTime=end_time,
-        createdAt=now,
-        updatedAt=now
-    )
-    db.session.add(wd)
-    db.session.commit()
 
-def clear_today_holiday():
-    with app.app_context():
-        today = ddate.today()
-        (db.session.query(Exception)
-           .filter(func.date(Exception.holidayDate) == today)
-           .delete(synchronize_session=False))
-        db.session.commit()
-        
 # Reopen Market
 @app.route('/admin/reopen_market', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def reopen_market():
-    if request.form.get("clear_holiday") == "on":
-        clear_today_holiday()
+    if request.method == 'POST':
+        if request.form.get("clear_holiday") == "on":
+            clear_holiday()
 
-    end_txt = (request.form.get("endTime") or "").strip()
-    if end_txt:
+        end_txt = (request.form.get("endTime") or "16:00").strip()
         try:
             end_time = datetime.datetime.strptime(end_txt, "%H:%M").time()
         except ValueError:
             flash("Invalid end time. Use HH:MM (24h).", "danger")
-            return redirect(url_for("changeMktHrs"))
-    else:
-        _, fallback_end = get_current_hours()
-        end_time = fallback_end or dtime(16, 0)
+    
+            return redirect(url_for("change_mkt__hrs"))
 
-    start_workingday(end_time)
-    flash("Market reopened for today.", "success")
-    return redirect(url_for("home"))
+        upsert_workingday_for_now(end_time)
+        flash("Market reopened for today.", "success")
+        return redirect(url_for("home"))
 
-def ensure_market_auto_reopen():
-    with app.app_context():
-        now = datetime.datetime.now()
-        if is_holiday(now.date()):
-            return
-
-        if not is_market_open(now):
-            _, fallback_end = get_current_hours()
-            end_time = fallback_end or dtime(16, 0)
-            start_workingday(end_time)
-
-scheduler.add_job(
-    ensure_market_auto_reopen,
-    'interval',
-    minutes=1,
-    id='auto_reopen',
-    replace_existing=True,
-    coalesce=True,
-    max_instances=1
-)
+    return redirect(url_for("change_mkt__hrs"))
 
 
 
