@@ -3,90 +3,142 @@
 
 {% block content %}
 <style>
-  .card.hover-lift {
-    transition: transform .2s ease, box-shadow .2s ease;
+  .card.hover-lift { transition: transform .2s ease, box-shadow .2s ease; }
+  .card.hover-lift:hover { transform: translateY(-4px); box-shadow: var(--bs-box-shadow-lg); }
+
+ 
+  .weekDays-selector input[type="checkbox"] { display: none; }
+  .weekDays-selector label {
+    display: inline-block; cursor: pointer;
+    padding: .35rem .85rem; border: 1px solid #0d6efd;
+    border-radius: 999px; margin: .25rem; user-select: none;
   }
-  .card.hover-lift:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--bs-box-shadow-lg);
+  .weekDays-selector input[type="checkbox"]:checked + label {
+    background-color: #0d6efd; color: #fff;
   }
+
+  .muted { color:#6c757d; }
 </style>
 
-<div class="row mt-5" style="padding-top: 5%;">
-  <div class="col-md-6 mx-auto">
+<div class="row mt-5" style="padding-top:5%;">
+  <div class="col-md-10 mx-auto">
     <div class="card hover-lift rounded-4 overflow-hidden">
-      <div class="card-body" style="background-color: #F5F5F5;">
-        <h5 class="card-title text-center mb-5">Change Market Settings</h5>
+      <div class="card-body" style="background-color:#F5F5F5;">
+        <h5 class="card-title text-center mb-4">Change Market Hours</h5>
 
-        
         <form action="{{ url_for('changeMktHrs') }}" method="post">
-          <h6 class="mb-4 text-center">Market Hours</h6>
 
-          <div class="form-group row mb-4" style="padding-left: 8%;">
-            <label for="startTime" class="col-sm-3 col-form-label">Start Time</label>
-            <div class="col-sm-9" style="max-width: 63%;">
-              <input type="time" class="form-control" id="startTime" name="startTime"
-                     style="background-color: #F5F5F5; border: none;">
+          <div class="row g-4 align-items-start">
+            
+            <div class="col-md-6">
+              <h6 class="mb-3 text-center">Select a Date</h6>
+              <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body">
+                  <input
+                    type="date"
+                    class="form-control form-control-lg"
+                    id="selected_date"
+                    name="selected_date"
+                    value="{{ selected_date|default('', true) }}"
+                    aria-describedby="selectedDateHelp" />
+                  <div id="selectedDateHelp" class="form-text mt-2">
+                    Chosen date: <strong id="datePreview">{{ selected_date or '—' }}</strong>
+                  </div>
+
+                  <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" value="on" id="close_market" name="close_market">
+                    <label class="form-check-label" for="close_market">
+                      Confirm closing market.
+                    </label>
+                  </div>
+
+                  <div class="mt-2">
+                    <label for="close_reason" class="form-label mb-1">Reason for Closing Market</label>
+                    <input type="text" class="form-control" id="close_reason" name="close_reason" placeholder="e.g., Independence Day" />
+                    <div class="form-text muted">Enabled once box is checked</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <h6 class="mb-3 text-center">Select Days to Close Market</h6>
+              {% set weekdays = [('mon','Mon'),('tue','Tue'),('wed','Wed'),('thu','Thu'),('fri','Fri'),('sat','Saturday'),('sun','Sunday')] %}
+              <div class="weekDays-selector d-flex justify-content-center flex-wrap">
+                {% for id,label in weekdays %}
+                  {% set checked = (selected_days is defined and id in selected_days) %}
+                  <input type="checkbox" id="weekday-{{ id }}" class="weekday" name="weekdays" value="{{ id }}" {% if checked %}checked{% endif %}>
+                  <label for="weekday-{{ id }}">{{ label }}</label>
+                {% endfor %}
+              </div>
+              <div class="mt-2 text-center">
+                <small>Selected days: <strong id="daysPreview">
+                  {% if selected_days %}{{ selected_days|map('capitalize')|join(', ') }}{% else %}None{% endif %}
+                </strong></small>
+              </div>
+
+              <div class="row mt-4 g-2 justify-content-center">
+                <div class="col-6">
+                  <label for="startTime" class="form-label">Open Time</label>
+                  <input type="time" class="form-control" id="startTime" name="startTime"
+                         value="{{ market_start|default('07:30') }}">
+                </div>
+                <div class="col-6">
+                  <label for="endTime" class="form-label">Close Time</label>
+                  <input type="time" class="form-control" id="endTime" name="endTime"
+                         value="{{ market_end|default('16:00') }}">
+                </div>
+                <div class="col-12">
+                  <div class="form-text muted">
+                    All times are in 24 hour format (07:30 - 16:00).
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="form-group row mb-4" style="padding-left: 8%;">
-            <label for="endTime" class="col-sm-3 col-form-label">End Time</label>
-            <div class="col-sm-9" style="max-width: 63%;">
-              <input type="time" class="form-control" id="endTime" name="endTime"
-                     style="background-color: #F5F5F5; border: none;">
-            </div>
-          </div>
-
-          <div class="form-group row mb-4" style="padding-left: 24%;">
-            <div class="col-sm-10 d-flex gap-3">
-              <button type="submit" class="btn btn-primary rounded-3"
-                      style="background-color: #8C1D40; color: #F5F5F5; border: none;">
-                Update Hours
-              </button>
-
-              <button formaction="{{ url_for('reopen_market') }}" formmethod="post"
-                      class="btn btn-success rounded-3"
-                      style="background-color: #8C1D40; color: #F5F5F5; border: none;">
-                Reopen Market
-              </button>
-            </div>
+          <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary px-4 rounded-4">Confirm</button>
           </div>
         </form>
-
-        <hr class="my-4">
-
-        <form action="{{ url_for('changeMktSchedule') }}" method="post">
-          <h6 class="mb-4 text-center">Market Holiday Schedule</h6>
-
-          <div class="form-group row mb-4" style="padding-left: 8%;">
-            <label for="holiday" class="col-sm-3 col-form-label">Holiday Date</label>
-            <div class="col-sm-9" style="max-width: 63%;">
-              <input type="date" class="form-control" id="holiday" name="holiday"
-                     style="background-color: #F5F5F5; border: none;">
-            </div>
-          </div>
-
-          <div class="form-group row mb-4" style="padding-left: 8%;">
-            <label for="reason" class="col-sm-3 col-form-label">Reason</label>
-            <div class="col-sm-9" style="max-width: 63%;">
-              <input type="text" class="form-control" id="reason" name="reason"
-                     style="background-color: #F5F5F5; border: none;" placeholder="e.g., Independence Day">
-            </div>
-          </div>
-
-          <div class="form-group row mb-4" style="padding-left: 24%;">
-            <div class="col-sm-10">
-              <button type="submit" class="btn btn-primary rounded-3"
-                      style="background-color: #8C1D40; color: #F5F5F5; border: none;">
-                Add Holiday
-              </button>
-            </div>
-          </div>
-        </form>
-
       </div>
     </div>
   </div>
 </div>
+
+<script>
+  (function () {
+    const dateInput = document.getElementById('selected_date');
+    const datePreview = document.getElementById('datePreview');
+    const fmt = d => d ? new Date(d).toLocaleDateString() : '—';
+    if (dateInput && datePreview) {
+      datePreview.textContent = fmt(dateInput.value);
+      dateInput.addEventListener('input', () => datePreview.textContent = fmt(dateInput.value));
+    }
+
+    
+    const daysPreview = document.getElementById('daysPreview');
+    const boxes = Array.from(document.querySelectorAll('.weekDays-selector input.weekday'));
+    function updateDays() {
+      const map = {mon:'Mon', tue:'Tue', wed:'Wed', thu:'Thu', fri:'Fri', sat:'Saturday', sun:'Sunday'};
+      const selected = boxes.filter(b => b.checked).map(b => map[b.value]);
+      daysPreview.textContent = selected.length ? selected.join(', ') : 'None';
+    }
+    boxes.forEach(b => b.addEventListener('change', updateDays));
+    updateDays();
+
+    
+    const closeChk = document.getElementById('close_market');
+    const start = document.getElementById('startTime');
+    const end = document.getElementById('endTime');
+    const reason = document.getElementById('close_reason');
+    function toggleTimeFields() {
+      const dis = closeChk.checked;
+      start.disabled = dis; end.disabled = dis;
+      reason.disabled = !dis;
+    }
+    closeChk.addEventListener('change', toggleTimeFields);
+    toggleTimeFields();
+  })();
+</script>
 {% endblock %}
