@@ -22,7 +22,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 app = Flask(__name__)
 # DATABASE -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://admin:password123@flask-rds-test.cq7ucai8kixi.us-east-1.rds.amazonaws.com:3306/sts_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Pa$$w0rd123@sts-rds-instance.cq7ucai8kixi.us-east-1.rds.amazonaws.com:3306/sts_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your-secret-key'
 
