@@ -1,57 +1,60 @@
 {% extends "base.html" %}
 {% block title %}Update User{% endblock %}
 {% block content %}
-<style>
-    .card.hover-lift {transition: transform .2s ease, box-shadow .2s ease;}
-    .card.hover-lift:hover {transform: translateY(-4px); box-shadow: var(--bs-box-shadow-lg);}
-</style>
 
-<div class="row mt-5" style="padding-top: 15%;">
-    <div class="col-md-6 mx-auto">
-        <div class="card hover-lift rounded-4 overflow-hidden">
-            <div class="card-body" style="background-color: #F5F5F5;">
-                <h5 class="card-title text-center mb-5">{{ user.fullName }}</h5>
-            </div>
-            <div class="d-flex">
-                <p class="form-label fw-bold mb-5" style="padding-left: 8%;">Email</p>
-                <span class="fw-bold" style="padding-left: 5%;">{{ user.email }}</span>
-            </div>
-            <div class="d-flex">
-                <p class="form-label fw-bold mb-5" style="padding-left: 8%;">Account Number</p>
-                <span class="fw-bold" style="padding-left: 5%;">{{ user.customerAccountNumber }}</span>
-            </div>
-            <div class="d-flex">
-                <p class="form-label fw-bold mb-5" style="padding-left: 8%;">Current Balance</p>
-                <span class="fw-bold" style="padding-left: 5%;">${{ user.availableFunds }}</span>
-            </div>
-            <form method="post">
-                <div class="form-group row mb-5" style="padding-left: 8%;">
-                    <label for="fullName" class="col-sm-2 col-form-label">Full Name</label>
-                    <div class="col-sm-10 ml-3" style="width: 63%">
-                        <input type="text" class="form-control" id="fullName" name="fullName" style="background-color: #F5F5F5;border: none;">
-                    </div>
-                </div>
-                <div class="form-group row mb-5" style="padding-left: 8%;">
-                    <label for="email" class="col-sm-2 col-form-label">Email</label>
-                    <div class="col-sm-10 ml-3" style="width: 63%;">  
-                        <input type="email" class="form-control" id="email" name="email" style="background-color: #F5F5F5;border: none;">
-                    </div>
-                </div>
-                <div class="form-group row mb-5" style="padding-left: 8%;">
-                    <label for="availableFunds" class="col-sm-2 col-form-label">Balance</label>
-                    <div class="col-sm-10 ml-3" style="width: 63%;">  
-                        <input type="number" class="form-control" id="availableFunds" name="availableFunds" style="background-color: #F5F5F5;border: none;">
-                    </div>
-                </div>
-                <div class="form-group row mb-5" style="padding-left: 24%;">
-                    <div class="col-sm-10">
-                        <button type="submit" class="btn btn-primary rounded-3" style="background-color: #8C1D40;color: #F5F5F5;border:none;">Submit</button>
-                    </div>
-                </div>
-            </form>
+<div>
+  <div>
+    <div>
+      <div>
+        <h5>{{ user.fullName }}</h5>
+      </div>
+
+      <div>
+        <p>Email</p>
+        <span>{{ user.email }}</span>
+      </div>
+
+      <div>
+        <p>Account Number</p>
+        <span>{{ user.customerAccountNumber }}</span>
+      </div>
+
+      <div>
+        <p>Current Balance</p>
+        <span>${{ user.availableFunds }}</span>
+      </div>
+
+      <form method="post">
+        <div>
+          <label for="fullName">Full Name</label>
+          <div>
+            <input type="text" id="fullName" name="fullName">
+          </div>
         </div>
-    </div>
-</div>
 
+        <div>
+          <label for="email">Email</label>
+          <div>
+            <input type="email" id="email" name="email">
+          </div>
+        </div>
+
+        <div>
+          <label for="availableFunds">Balance</label>
+          <div>
+            <input type="number" id="availableFunds" name="availableFunds">
+          </div>
+        </div>
+
+        <div>
+          <div>
+            <button type="submit">Submit</button>
+          </div>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
 
 {% endblock %}

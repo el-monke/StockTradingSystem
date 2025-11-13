@@ -1,223 +1,92 @@
 {% extends "base.html" %}
-{% block title %}Home{% endblock %}
+{% block title %}Home - User{% endblock %}
 {% block content %}
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="alert alert-{{ 'danger' if category == 'error' else category }}">{{ message }}</div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
-    {% if current_user.is_authenticated %}
-        {% if current_user.role == "admin" %}
-        <style>
-            .card.hover-lift {transition: transform .2s ease, box-shadow .2s ease;}
-            .card.hover-lift:hover {transform: translateY(-4px); box-shadow: var(--bs-box-shadow-lg);}
-        </style>
 
-        <div class="row align-items-stretch" style="min-height: 75vh;">
-            <div class="col-lg-8">
-                <div class="card hover-lift rounded-4 h-100">
-                    <div class="card-body">
-                        <h5 class="card-title text-center">Admin Dashboard</h5>
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Name</th>
-                                    <th scope="col">Email</th>
-                                    <th scope="col">Account Number</th>
-                                    <th scope="col">Balance</th>
-                                    <th scope="col">Update/Delete</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for i in user %}
-                                <tr>
-                                    <td>{{ i.fullName }}</td>
-                                    <td>{{ i.email }}</td>
-                                    <td>{{ i.customerAccountNumber }}</td>
-                                    <td>${{ i.availableFunds }}</td>
-                                    <td class="d-flex gap-2">
-                                        <a class="btn btn-sm btn-primary" href="{{ url_for('update_user', user_id=i.userId) }}" style="background-color: #FFC627;color: #F5F5F5;border:none;">Update</a>
-                                        <form method="POST" action="{{ url_for('delete_user', user_id=i.userId)}}">
-                                            <button type="submit" class="btn btn-sm btn-primary" style="background-color: #8C1D40;color: #F5F5F5;border:none;">Delete</button>
-                                        </form>
-                                    </td>
-                                    
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>                            
-                    </div>
-                </div>
-            </div>
+{% if current_user.is_authenticated %}
 
-            <div class="col-lg-4">
-                <div class="card hover-lift rounded-4 h-100">
-                    <div class="card-body">
-                        <h5 class="card-title text-center">Stocks</h5>
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Ticker</th>
-                                    <th scope="col">Qty</th>
-                                    <th scope="col">Init Price</th>
-                                    <th scope="col">Current Price</th>
-                                </tr>
-                            </thead>
-                            <tbody id="stock-table-body">
-                                {% for i in stock %}
-                                <tr>
-                                    <td>{{ i.ticker }}</td>
-                                    <td>{{ i.quantity }}</td>
-                                    <td>${{ i.initStockPrice }}</td>
-                                    <td>${{ i.currentMktPrice }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        <script>
-                        function updateStockPrices() {
-                            fetch('/api/stock_prices')
-                                .then(response => response.json())
-                                .then(data => {
-                                    const tbody = document.getElementById('stock-table-body');
-                                    if (!tbody) return;
-                                    tbody.innerHTML = '';
-                                    data.forEach(row => {
-                                        tbody.innerHTML += `<tr><td>${row.ticker}</td><td>${row.quantity}</td><td>$${row.initStockPrice}</td><td>$${row.currentMktPrice}</td></tr>`;
-                                    });
-                                });
-                        }
-                        setInterval(updateStockPrices, 5000); // Update every 5 seconds
-                        </script>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% elif current_user.role == "user" %}
-        <style>
-            .card.hover-lift {transition: transform .2s ease, box-shadow .2s ease;}
-            .card.hover-lift:hover {transform: translateY(-4px); box-shadow: var(--bs-box-shadow-lg);}
-        </style>
+  <div>
+    <div>
+      <div>
+        <div>
+          <h5>{{ current_user.fullName }} - Dashboard</h5>
 
-
-        <div class="container-fluid">
-
-            <div class="row align-items-stretch" style="min-height: 75vh;">
-                <div class="col-lg-9">
-                    <div class="card hover-lift rounded-4 h-100">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ current_user.fullName }} - Dashboard</h5>
-                            <div>
-                                <canvas id="userChart"></canvas>
-                            </div>
-                            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-                            <script>
-                                const rows = {{ rows | tojson | safe }}
-
-                                const labels = rows.map(r => r.name);
-                                const cost = rows.map(r => r.cost);
-                                const profitLoss = rows.map(r => r.profit_loss);
-
-                                new Chart(document.getElementById("userChart"), {
-                                    type: "bar",
-                                    data: {
-                                        labels,
-                                        datasets: [
-                                            { label: "Cost", data: cost, stack: "s"},
-                                            { label: "Profit/Loss", data: profitLoss, stack: "s"}
-                                        ]
-                                    },
-                                    options: {
-                                        responsive: true,
-                                        scales: {
-                                            x: { stacked: true },
-                                            y: { stacked: true,
-                                                beginAtZero: true
-                                            }
-                                        }
-                                    }
-                                });
-                            </script>                            
-                        </div>
-                    </div>
-                </div>
-            
-            <div class="col-lg-3 d-flex flex-column gap-4">
-                <div class="card hover-lift rounded-4 flex-fill">
-                    <div class="card-body">
-                        <table class="table">
-                            <thead>
-                                <h5 class="title">Owned Stock</h5>
-                                <tr>
-                                    <th scope="col">Ticker</th>
-                                    <th scope="col">Mkt Price</th>
-                                    <th scope="col">Qty</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for i in portfolio %}
-                                <tr>
-                                    <th scope="row">{{ i.ticker }}</th>
-                                    <td>${{ i.mktPrice }}</td>
-                                    <td>{{ i.quantity }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="card hover-lift rounded-4 flex-fill">
-                    <div class="card-body">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Ticker</th>
-                                    <th scope="col">Mkt Price</th>
-                                    <th scope="col">Init Price</th>
-                                </tr>
-                            </thead>
-                            <tbody id="available-stock-table-body">
-                                <h5 class="title">Available Stock</h5>
-                                {% for i in stock %}
-                                    <tr>
-                                        <th scope="row">{{ i.ticker }}</th>
-                                        <td>${{ i.currentMktPrice }}</td>
-                                        <td>${{ i.initStockPrice }}</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        
-                        <script>
-                        function updateAvailableStockPrices() {
-                            fetch('/api/stock_prices') 
-                                .then(response => response.json())
-                                .then(data => {
-                                    const tbody = document.getElementById('available-stock-table-body');
-                                    if (!tbody) return;
-                                    tbody.innerHTML = '';
-                                   
-                                    data.forEach(row => {
-                                        tbody.innerHTML += `<tr><th scope="row">${row.ticker}</th><td>$${row.currentMktPrice}</td><td>$${row.initStockPrice}</td></tr>`;
-                                    });
-                                });
-                        }
-                        
-                        setInterval(updateAvailableStockPrices, 5000);
-                        </script>
-                        </table>
-                        <h5 class="title">Balance</h5>
-                        <p class="card-text"><b>${{ current_user.availableFunds }}</b></p>                            
-                    </div>
-                </div>
-            </div>
+      <div>
+        <div>
+          <div>
+            <h5>Owned Stock</h5>
+            <table>
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Mkt Price</th>
+                  <th>Qty</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for i in portfolio %}
+                <tr>
+                  <td>{{ i.ticker }}</td>
+                  <td>${{ "{:,.2f}".format(i.mktPrice) }}</td>
+                  <td>{{ i.quantity }}</td>
+                  <td>${{ "{:,.2f}".format(i.mktPrice * i.quantity) }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
 
+        <div>
+          <div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Mkt Price</th>
+                  <th>Init Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="3"><h5>Available Stock</h5></td></tr>
+                {% for i in stock %}
+                <tr>
+                  <td>{{ i.ticker }}</td>
+                  <td>${{ "{:,.2f}".format(i.currentMktPrice) }}</td>
+                  <td>${{ "{:,.2f}".format(i.initStockPrice) }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+
+            <script>
+            function updateAvailableStockPrices() {
+              fetch('/api/stock_prices')
+                .then(response => response.json())
+                .then(data => {
+                  const tbody = document.getElementById('available-stock-table-body');
+                  if (!tbody) return;
+                  tbody.innerHTML = '';
+                  data.forEach(function(row) {
+                    tbody.innerHTML += '<tr><td>' + row.ticker +
+                      '</td><td>$' + row.currentMktPrice +
+                      '</td><td>$' + row.initStockPrice + '</td></tr>';
+                  });
+                });
+            }
+            setInterval(updateAvailableStockPrices, 5000);
+            </script>
+
+            <h5>Balance</h5>
+            <p>${{ "{:,.2f}".format(current_user.availableFunds) }}</p>
+          </div>
         </div>
-        {% endif %}
-    {% else %}
-        <h1>You are not logged in</h1>
-    {% endif %}
+      </div>
+    </div>
+  </div>
+
+{% else %}
+  <h1>You are not logged in</h1>
+{% endif %}
+
 {% endblock %}

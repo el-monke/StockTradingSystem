@@ -2,103 +2,82 @@
 {% block title %}Change Market Settings{% endblock %}
 
 {% block content %}
-<style>
-  .card.hover-lift { transition: transform .2s ease, box-shadow .2s ease; }
-  .card.hover-lift:hover { transform: translateY(-4px); box-shadow: var(--bs-box-shadow-lg); }
 
- 
-  .weekDays-selector input[type="checkbox"] { display: none; }
-  .weekDays-selector label {
-    display: inline-block; cursor: pointer;
-    padding: .35rem .85rem; border: 1px solid #0d6efd;
-    border-radius: 999px; margin: .25rem; user-select: none;
-  }
-  .weekDays-selector input[type="checkbox"]:checked + label {
-    background-color: #0d6efd; color: #fff;
-  }
-
-  .muted { color:#6c757d; }
-</style>
-
-<div class="row mt-5" style="padding-top:5%;">
-  <div class="col-md-10 mx-auto">
-    <div class="card hover-lift rounded-4 overflow-hidden">
-      <div class="card-body" style="background-color:#F5F5F5;">
-        <h5 class="card-title text-center mb-4">Change Market Hours</h5>
+<div>
+  <div>
+    <div>
+      <div>
+        <h5>Change Market Hours</h5>
 
         <form action="{{ url_for('changeMktHrs') }}" method="post">
 
-          <div class="row g-4 align-items-start">
-            
-            <div class="col-md-6">
-              <h6 class="mb-3 text-center">Select a Date</h6>
-              <div class="card border-0 shadow-sm rounded-4">
-                <div class="card-body">
-                  <input
-                    type="date"
-                    class="form-control form-control-lg"
-                    id="selected_date"
-                    name="selected_date"
-                    value="{{ selected_date|default('', true) }}"
-                    aria-describedby="selectedDateHelp" />
-                  <div id="selectedDateHelp" class="form-text mt-2">
-                    Chosen date: <strong id="datePreview">{{ selected_date or '—' }}</strong>
-                  </div>
+          <div>
+            <div>
+              <h6>Select a Date</h6>
+              <div>
+                <input
+                  type="date"
+                  id="selected_date"
+                  name="selected_date"
+                  value="{{ selected_date|default('', true) }}"
+                  aria-describedby="selectedDateHelp">
+                <div id="selectedDateHelp">
+                  Chosen date: <strong id="datePreview">{{ selected_date or '—' }}</strong>
+                </div>
 
-                  <div class="form-check mt-3">
-                    <input class="form-check-input" type="checkbox" value="on" id="close_market" name="close_market">
-                    <label class="form-check-label" for="close_market">
-                      Confirm closing market.
-                    </label>
-                  </div>
+                <div>
+                  <input type="checkbox" value="on" id="close_market" name="close_market">
+                  <label for="close_market">
+                    Confirm closing market.
+                  </label>
+                </div>
 
-                  <div class="mt-2">
-                    <label for="close_reason" class="form-label mb-1">Reason for Closing Market</label>
-                    <input type="text" class="form-control" id="close_reason" name="close_reason" placeholder="e.g., Independence Day" />
-                    <div class="form-text muted">Enabled once box is checked</div>
-                  </div>
+                <div>
+                  <label for="close_reason">Reason for Closing Market</label>
+                  <input type="text" id="close_reason" name="close_reason" placeholder="e.g. Independence Day">
+                  <div>Enabled once box is checked</div>
                 </div>
               </div>
             </div>
 
-            <div class="col-md-6">
-              <h6 class="mb-3 text-center">Select Days to Close Market</h6>
+            <div>
+              <h6>Select Days to Close Market</h6>
               {% set weekdays = [('mon','Mon'),('tue','Tue'),('wed','Wed'),('thu','Thu'),('fri','Fri'),('sat','Saturday'),('sun','Sunday')] %}
-              <div class="weekDays-selector d-flex justify-content-center flex-wrap">
-                {% for id,label in weekdays %}
-                  {% set checked = (selected_days is defined and id in selected_days) %}
-                  <input type="checkbox" id="weekday-{{ id }}" class="weekday" name="weekdays" value="{{ id }}" {% if checked %}checked{% endif %}>
-                  <label for="weekday-{{ id }}">{{ label }}</label>
+              <div class="weekDays-selector">
+                {% for id, label in weekdays %}
+                <div>
+                  <input type="checkbox" id="{{ id }}" name="{{ id }}" value="{{ id }}" class="weekday">
+                  <label for="{{ id }}">{{ label }}</label>
+                </div>
                 {% endfor %}
               </div>
-              <div class="mt-2 text-center">
-                <small>Selected days: <strong id="daysPreview">
-                  {% if selected_days %}{{ selected_days|map('capitalize')|join(', ') }}{% else %}None{% endif %}
-                </strong></small>
+              <div>
+                Selected Days:
+                <strong id="daysPreview">
+                  {% if selected_days %}{{ selected_days|join(', ') }}{% else %}None{% endif %}
+                </strong>
               </div>
 
-              <div class="row mt-4 g-2 justify-content-center">
-                <div class="col-6">
-                  <label for="startTime" class="form-label">Open Time</label>
-                  <input type="time" class="form-control" id="startTime" name="startTime"
-                         value="{{ market_start|default('07:30') }}">
-                </div>
-                <div class="col-6">
-                  <label for="endTime" class="form-label">Close Time</label>
-                  <input type="time" class="form-control" id="endTime" name="endTime"
-                         value="{{ market_end|default('16:00') }}">
-                </div>
-                <div class="col-12">
-                  <div class="form-text muted">
-                    All times are in 24 hour format (07:30 - 16:00).
-                  </div>
-                </div>
+              <div>
+                <label for="startTime">Open Time</label>
+                <input type="time" id="startTime" name="startTime"
+                       value="{{ market_start|default('07:30') }}">
+              </div>
+
+              <div>
+                <label for="endTime">Close Time</label>
+                <input type="time" id="endTime" name="endTime"
+                       value="{{ market_end|default('16:00') }}">
+              </div>
+
+              <div>
+                All times are in 24 hour format (07:30 - 16:00).
               </div>
             </div>
           </div>
 
-          <div class="text-center mt-4">
-            <button type="submit" class="btn btn-primary px-4 rounded-4">Confirm</button>
+          <div>
+            <button type="submit">Confirm</button>
           </div>
         </form>
       </div>
@@ -116,29 +95,29 @@
       dateInput.addEventListener('input', () => datePreview.textContent = fmt(dateInput.value));
     }
 
-    
     const daysPreview = document.getElementById('daysPreview');
     const boxes = Array.from(document.querySelectorAll('.weekDays-selector input.weekday'));
     function updateDays() {
-      const map = {mon:'Mon', tue:'Tue', wed:'Wed', thu:'Thu', fri:'Fri', sat:'Saturday', sun:'Sunday'};
+      const map = {mon:'Mon', tue:'Tue', wed:'Wed', thu:'Thu', fri:'Friday', sat:'Saturday', sun:'Sunday'};
       const selected = boxes.filter(b => b.checked).map(b => map[b.value]);
       daysPreview.textContent = selected.length ? selected.join(', ') : 'None';
     }
     boxes.forEach(b => b.addEventListener('change', updateDays));
     updateDays();
 
-    
     const closeChk = document.getElementById('close_market');
     const start = document.getElementById('startTime');
     const end = document.getElementById('endTime');
     const reason = document.getElementById('close_reason');
     function toggleTimeFields() {
       const dis = closeChk.checked;
-      start.disabled = dis; end.disabled = dis;
+      start.disabled = dis;
+      end.disabled = dis;
       reason.disabled = !dis;
     }
     closeChk.addEventListener('change', toggleTimeFields);
     toggleTimeFields();
   })();
 </script>
+
 {% endblock %}
