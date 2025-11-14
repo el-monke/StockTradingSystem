@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Buy Stock{% endblock %}
+{% block content %}
+
+<div>
+  <div>
+    <div>
+      <div>
+        <h5>Buy Stock</h5>
+
+        {# {% if not market_open %}
+        <div>
+          Market is closed (Hours: {{ market_start.strftime("%H:%M") }}–{{ market_end.strftime("%H:%M") }}{% if holiday %} · Holiday{% endif %}).
+          Orders are disabled.
+        </div>
+        {% endif %} #}
+
+        <form action="{{ url_for('buyStock') }}" method="post">
+          <div>
+            <p>Current Balance</p>
+            <span>${{ current_user.availableFunds }}</span>
+          </div>
+
+          <div>
+            <label for="ticker">Stock</label>
+            <div>
+              <input type="text" id="ticker" name="ticker" placeholder="e.g. Microsoft or MSFT">
+            </div>
+          </div>
+
+          <div>
+            <label for="quantity">Quantity</label>
+            <div>
+              <input type="number" id="quantity" name="quantity" min="1" step="1">
+            </div>
+          </div>
+
+          <div>
+            <div>
+              <button type="submit" {# {% if not market_open %}disabled{% endif % #} }>Submit</button>
+            </div>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+

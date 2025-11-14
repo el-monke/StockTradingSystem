@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Sign In{% endblock %}
+{% block content %}
+
+<div>
+  <div>
+    <div>
+      <div>
+        <h5>Sign In</h5>
+
+        <form action="{{ url_for('signIn') }}" method="post">
+          <div>
+            <label for="username">Username</label>
+            <div>
+              <input type="text" id="username" name="username">
+            </div>
+          </div>
+
+          <div>
+            <label for="password">Password</label>
+            <div>
+              <input type="password" id="password" name="password">
+            </div>
+          </div>
+
+          <div>
+            <div>
+              <button type="submit">Sign In</button>
+              <a href="{{ url_for('createaccount') }}">Create Account</a>
+            </div>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
