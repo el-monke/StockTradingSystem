@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Update User{% endblock %}
+{% block content %}
+
+<div>
+  <div>
+    <div>
+      <div>
+        <h5>{{ user.fullName }}</h5>
+      </div>
+
+      <div>
+        <p>Email</p>
+        <span>{{ user.email }}</span>
+      </div>
+
+      <div>
+        <p>Account Number</p>
+        <span>{{ user.customerAccountNumber }}</span>
+      </div>
+
+      <div>
+        <p>Current Balance</p>
+        <span>${{ user.availableFunds }}</span>
+      </div>
+
+      <form method="post">
+        <div>
+          <label for="fullName">Full Name</label>
+          <div>
+            <input type="text" id="fullName" name="fullName">
+          </div>
+        </div>
+
+        <div>
+          <label for="email">Email</label>
+          <div>
+            <input type="email" id="email" name="email">
+          </div>
+        </div>
+
+        <div>
+          <label for="availableFunds">Balance</label>
+          <div>
+            <input type="number" id="availableFunds" name="availableFunds">
+          </div>
+        </div>
+
+        <div>
+          <div>
+            <button type="submit">Submit</button>
+          </div>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}

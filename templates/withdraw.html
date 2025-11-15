@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Withdraw Funds{% endblock %}
+{% block content %}
+
+<div>
+  <div>
+    <div>
+      <div>
+        <h5>Withdraw Funds</h5>
+
+        <form action="{{ url_for('withdrawFunds') }}" method="post">
+          <div>
+            <p>Current Balance</p>
+            <span>${{ current_user.availableFunds }}</span>
+          </div>
+
+          <div>
+            <label for="amount">Withdrawal Amount</label>
+            <div>
+              <input type="text" id="amount" name="amount">
+            </div>
+          </div>
+
+          <div>
+            <div>
+              <button type="submit">Submit</button>
+            </div>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
