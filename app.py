@@ -315,6 +315,41 @@ def signIn():
 
 # END USER AUTHENTICATION---------------------------------------------------------------------------
 
+# ---------- MARKET STATUS HELPER -------------------------------------------------------------------
+def get_market_status(target_date=None):
+    now = datetime.datetime.now()
+
+    if target_date is None:
+        target_date = now.date()
+
+    weekday_abbr = target_date.strftime("%a")[:3]
+
+    wd = WorkingDay.query.filter_by(dayOfWeek=weekday_abbr).first()
+
+    holiday = Exception.query.filter(
+        func.date(Exception.holidayDate) == target_date
+    ).first()
+
+    # Default
+    market_open = False
+    market_start = None
+    market_end = None
+
+    # Market cannot open if no working day OR if it's a holiday
+    if wd and not holiday:
+        market_start = wd.startTime
+        market_end = wd.endTime
+
+        # Check time only if it's today
+        if target_date == now.date():
+            current = now.time()
+            if market_start <= current <= market_end:
+                market_open = True
+
+    return market_open, market_start, market_end, holiday
+
+# -------------------------------------------------------------------
+
 # HOME ROUTES---------------------------------------------------------------------------------------
 
 # Home Route for User
@@ -496,46 +531,102 @@ def withdrawAction(amount):
 @app.route("/home/buystock", methods=["GET", "POST"])
 @login_required
 def buyStock():
+    # Compute market status once per request (for today)
+    market_open, market_start, market_end, holiday = get_market_status()
+
     if request.method == "POST":
+
+        # HARD BLOCK if market is closed, even if someone tries to POST manually
+        if not market_open:
+            flash("Market is currently closed. You cannot place buy orders.", "error")
+            return render_template(
+                "buy_stock.html",
+                market_open=market_open,
+                market_start=market_start,
+                market_end=market_end,
+                holiday=holiday
+            )
 
         ticker = request.form.get("ticker")
         quantity = request.form.get("quantity")
 
         if (ticker == "") or (quantity == ""):
             flash("Empty fields. Please enter a ticker and quantity.", "error")
-            return render_template("buy_stock.html")
-        
+            return render_template(
+                "buy_stock.html",
+                market_open=market_open,
+                market_start=market_start,
+                market_end=market_end,
+                holiday=holiday
+            )
+
         try:
             ticker = ticker.strip().upper()
             quantity = int(quantity)
 
             if (quantity <= 0):
                 flash("Quantity must be positive. Please try again.", "error")
-                return render_template("buy_stock.html")
+                return render_template(
+                    "buy_stock.html",
+                    market_open=market_open,
+                    market_start=market_start,
+                    market_end=market_end,
+                    holiday=holiday
+                )
         except:
             flash("Error converting quantity to int. Please try again.", "error")
-            return render_template("buy_stock.html")
-        
+            return render_template(
+                "buy_stock.html",
+                market_open=market_open,
+                market_start=market_start,
+                market_end=market_end,
+                holiday=holiday
+            )
+
         try:
             stock = StockInventory.query.filter_by(ticker=ticker).first()
 
             if not stock:
                 flash("Stock not found. Please enter a valid stock.", "error")
-                return render_template("buy_stock.html")
-            
+                return render_template(
+                    "buy_stock.html",
+                    market_open=market_open,
+                    market_start=market_start,
+                    market_end=market_end,
+                    holiday=holiday
+                )
+
             transactionAmount = stock.currentMktPrice * quantity
 
             if transactionAmount > current_user.availableFunds:
                 flash("Insufficient funds for this transaction. Please deposit funds.", "error")
-                return render_template("buy_stock.html")
-            
+                return render_template(
+                    "buy_stock.html",
+                    market_open=market_open,
+                    market_start=market_start,
+                    market_end=market_end,
+                    holiday=holiday
+                )
+
             if quantity > stock.quantity:
                 flash("Inputted quantity exceeds Market Cap. Please enter a different quantity.", "error")
-                return render_template("buy_stock.html")
+                return render_template(
+                    "buy_stock.html",
+                    market_open=market_open,
+                    market_start=market_start,
+                    market_end=market_end,
+                    holiday=holiday
+                )
         except:
             flash("Error. Please try again.", "error")
-            return render_template("buy_stock.html")
-        
+            return render_template(
+                "buy_stock.html",
+                market_open=market_open,
+                market_start=market_start,
+                market_end=market_end,
+                holiday=holiday
+            )
+
         try:
             current_user.availableFunds -= transactionAmount
             current_user.updatedAt = datetime.datetime.now()
@@ -551,9 +642,22 @@ def buyStock():
         except:
             db.session.rollback()
             flash("Error placing buy order. Please try again.", "error")
-            return render_template("buy_stock.html")
+            return render_template(
+                "buy_stock.html",
+                market_open=market_open,
+                market_start=market_start,
+                market_end=market_end,
+                holiday=holiday
+            )
 
-    return render_template("buy_stock.html")
+    # GET request
+    return render_template(
+        "buy_stock.html",
+        market_open=market_open,
+        market_start=market_start,
+        market_end=market_end,
+        holiday=holiday
+    )
 
 # Sell Stock Route
 @app.route("/home/sellstock", methods=["GET", "POST"])
@@ -894,56 +998,77 @@ def addStock(company):
 @admin_required
 def changeMktHrs():
     if request.method == "POST":
+
+        close_market = request.form.get("close_market")
+        selected_date = request.form.get("selected_date", "").strip()
+        close_reason = request.form.get("close_reason", "").strip()
+
+        if close_market == "on" and selected_date:
+            try:
+                date_obj = datetime.datetime.strptime(selected_date, "%Y-%m-%d")
+                ex = Exception(
+                    adminId=current_user.adminId,
+                    reason=close_reason or "Closed by admin",
+                    holidayDate=date_obj,
+                    createdAt=datetime.datetime.now(),
+                    updatedAt=datetime.datetime.now()
+                )
+                db.session.add(ex)
+                db.session.commit()
+                flash(f"Market closed for {selected_date}.", "success")
+                return redirect(url_for("changeMktHrs"))
+            except:
+                db.session.rollback()
+                flash("Error saving closed date.", "error")
+  
         day = request.form.get("dayOfWeek", "").strip()
         startTime = request.form.get("startTime", "").strip()
         endTime = request.form.get("endTime", "").strip()
 
-        if not day or not startTime or not endTime:
-            flash("Please fill in day, start time, and end time.", "error")
-            return render_template("change_mkt_hrs.html")
+        if day and startTime and endTime:
+            try:
+                start_time = datetime.datetime.strptime(startTime, "%H:%M").time()
+                end_time = datetime.datetime.strptime(endTime, "%H:%M").time()
+            except:
+                flash("Time must be in HH:MM format (HH:MM).", "error")
+                return render_template("change_mkt_hrs.html")
 
-        try:
-            start_time = datetime.datetime.strptime(startTime, "%H:%M").time()
-            end_time = datetime.datetime.strptime(endTime, "%H:%M").time()
-        except:
-            flash("Time must be in HH:MM format (HH:MM).", "error")
-            return render_template("change_mkt_hrs.html")
+            day = day[:3].capitalize()
 
-        day = day[:3].capitalize()
-
-        try:
-            wd = WorkingDay.query.filter_by(
-                adminId=current_user.adminId,
-                dayOfWeek=day
-            ).first()
-
-            if wd is None:
-                wd = WorkingDay(
+            try:
+                wd = WorkingDay.query.filter_by(
                     adminId=current_user.adminId,
-                    dayOfWeek=day,
-                    startTime=start_time,
-                    endTime=end_time,
-                    createdAt=datetime.datetime.now(),
-                    updatedAt=datetime.datetime.now()
-                )
-                db.session.add(wd)
-            else:
-                wd.startTime = start_time
-                wd.endTime = end_time
-                wd.updatedAt = datetime.datetime.now()
+                    dayOfWeek=day
+                ).first()
 
-            db.session.commit()
-            flash("Market hours saved.", "success")
-            return redirect(url_for("changeMktHrs"))
-        except:
-            db.session.rollback()
-            flash("Error saving market hours.", "error")
+                if wd is None:
+                    wd = WorkingDay(
+                        adminId=current_user.adminId,
+                        dayOfWeek=day,
+                        startTime=start_time,
+                        endTime=end_time,
+                        createdAt=datetime.datetime.now(),
+                        updatedAt=datetime.datetime.now()
+                    )
+                    db.session.add(wd)
+                else:
+                    wd.startTime = start_time
+                    wd.endTime = end_time
+                    wd.updatedAt = datetime.datetime.now()
+
+                db.session.commit()
+                flash("Market hours saved.", "success")
+                return redirect(url_for("changeMktHrs"))
+            except:
+                db.session.rollback()
+                flash("Error saving market hours.", "error")
 
     workingDays = WorkingDay.query.filter_by(
         adminId=current_user.adminId
     ).order_by(WorkingDay.dayOfWeek).all()
 
     return render_template("change_mkt_hrs.html", workingDays=workingDays)
+
 
 #Mkt schedule begins
 @app.route("/home/admin/changemktschedule", methods=["GET", "POST"])
