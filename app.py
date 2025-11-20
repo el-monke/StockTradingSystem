@@ -214,11 +214,11 @@ def createaccount():
         confPassword = request.form.get("confPassword")
 
         if (fullName == "") or (username == "") or (email == "") or (password == "") or (confPassword == ""):
-            flash("Empty fields. Please try again.", "error")
+            flash("Empty fields. Please try again.", "danger")
             return render_template("create_account.html")
 
         if password != confPassword:
-            flash("Passwords do not match. Please try again.", "error")
+            flash("Passwords do not match. Please try again.", "danger")
             return render_template("create_account.html")
         
         try:
@@ -238,7 +238,7 @@ def createaccount():
         
         except:
             db.session.rollback()
-            flash("Error. Please try again.", "error")
+            flash("Error. Please try again.", "danger")
             return render_template("create_account.html")
         
     return render_template("create_account.html")
@@ -293,7 +293,7 @@ def signIn():
         password = request.form.get("password")
 
         if (username == "") or (password == ""):
-            flash("Empty fields. Please try again.", "error")
+            flash("Empty fields. Please try again.", "danger")
             return render_template("sign_in.html")
 
         user = User.query.filter_by(username=username).first()
@@ -308,7 +308,7 @@ def signIn():
             return redirect(url_for("homeAdmin"))
             
         else:
-            flash("Invalid credentials. Please try again.", "error")
+            flash("Invalid credentials. Please try again.", "danger")
             return render_template("sign_in.html")
         
     return render_template("sign_in.html")
