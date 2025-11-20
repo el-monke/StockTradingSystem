@@ -1071,24 +1071,16 @@ def changeMktHrs():
 
    
 
-@app.route("/home/admin/openmarket/<int:exception_id>", methods=["POST"])
+@app.route("/home/admin/openallmarkets", methods=["POST"])
 @admin_required
-def openMarket(exception_id):
+def openAllMarkets():
     try:
-        ex = Exception.query.filter_by(
-            exceptionId=exception_id,
-            adminId=current_user.adminId
-        ).first()
-        
-        if ex:
-            db.session.delete(ex)
-            db.session.commit()
-            flash(f"Market reopened for {ex.holidayDate.strftime('%Y-%m-%d')}.", "success")
-        else:
-            flash("Exception not found.", "error")
+        Exception.query.filter_by(adminId=current_user.adminId).delete()
+        db.session.commit()
+        flash("All market closures cleared. Market is now open.", "success")
     except:
         db.session.rollback()
-        flash("Error reopening market.", "error")
+        flash("Error clearing market closures.", "error")
     
     return redirect(url_for("changeMktHrs"))
 
