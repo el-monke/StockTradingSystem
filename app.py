@@ -1069,6 +1069,30 @@ def changeMktHrs():
 
     return render_template("change_mkt_hrs.html", workingDays=workingDays)
 
+   
+
+@app.route("/home/admin/openmarket/<int:exception_id>", methods=["POST"])
+@admin_required
+def openMarket(exception_id):
+    try:
+        ex = Exception.query.filter_by(
+            exceptionId=exception_id,
+            adminId=current_user.adminId
+        ).first()
+        
+        if ex:
+            db.session.delete(ex)
+            db.session.commit()
+            flash(f"Market reopened for {ex.holidayDate.strftime('%Y-%m-%d')}.", "success")
+        else:
+            flash("Exception not found.", "error")
+    except:
+        db.session.rollback()
+        flash("Error reopening market.", "error")
+    
+    return redirect(url_for("changeMktHrs"))
+
+
 
 #Mkt schedule begins
 @app.route("/home/admin/changemktschedule", methods=["GET", "POST"])
