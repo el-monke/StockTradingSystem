@@ -1067,7 +1067,7 @@ def changeMktHrs():
         adminId=current_user.adminId
     ).order_by(WorkingDay.dayOfWeek).all()
 
-    return render_template("change_mkt_hrs.html", workingDays=workingDays)
+    return render_template("change_mkt_hrs.html", workingDays=workingDays, exceptions=exceptions)
 
    
 
