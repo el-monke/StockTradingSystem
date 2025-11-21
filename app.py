@@ -365,7 +365,6 @@ def home():
             StockInventory.initStockPrice
             )
             .order_by(StockInventory.ticker)
-            .limit(3)
             .all()
         )
 
@@ -375,7 +374,7 @@ def home():
                 Portfolio.mktPrice,
                 Portfolio.quantity
             )
-            .filter_by(userId=current_user.userId) # <-- filter by logged-in user
+            .filter_by(userId=current_user.userId)
             .order_by(Portfolio.ticker)
             .all()
         )
@@ -383,11 +382,16 @@ def home():
         portfolioValue = calculateValue()
         contributions = calculateContribution()
         totalReturn = (current_user.availableFunds + portfolioValue) - contributions
+        
+
+        labels = ["Liquid", "Invested", "Return"]
+        data = [current_user.availableFunds, portfolioValue, totalReturn]
+
     except:
         flash("Error retrieving values from DB.", "error")
         return render_template("home.html")
 
-    return render_template("home.html", stock=stock, portfolio=portfolio, totalReturn=totalReturn)
+    return render_template("home.html", stock=stock, portfolio=portfolio, totalReturn=totalReturn, pieLabels=labels, pieData=data)
     
 # Home Route for Admin
 @app.route("/home/admin")
@@ -459,7 +463,15 @@ def depositFunds():
             flash("Error. Please try again.", "error")
             return render_template("deposit.html")
 
-    return render_template("deposit.html")
+    transactions = (
+        FinancialTransaction.query
+        .filter_by(username=current_user.username)
+        .order_by(FinancialTransaction.createdAt.desc())
+        .limit(10)
+        .all()
+    )
+
+    return render_template("deposit.html", transactions=transactions)
 
 def depositAction(amount):
         
@@ -510,8 +522,16 @@ def withdrawFunds():
             db.session.rollback()
             flash("Error. Please try again.", "error")
             return render_template("withdraw.html")
-        
-    return render_template("withdraw.html")
+
+    transactions = (
+        FinancialTransaction.query
+        .filter_by(username=current_user.username)
+        .order_by(FinancialTransaction.createdAt.desc())
+        .limit(10)
+        .all()
+    )
+
+    return render_template("withdraw.html", transactions=transactions)
 
 def withdrawAction(amount):
 
@@ -538,7 +558,7 @@ def buyStock():
 
         # HARD BLOCK if market is closed, even if someone tries to POST manually
         if not market_open:
-            flash("Market is currently closed. You cannot place buy orders.", "error")
+            flash("Market is currently closed. You cannot place buy orders.", "danger")
             return render_template(
                 "buy_stock.html",
                 market_open=market_open,
@@ -551,7 +571,7 @@ def buyStock():
         quantity = request.form.get("quantity")
 
         if (ticker == "") or (quantity == ""):
-            flash("Empty fields. Please enter a ticker and quantity.", "error")
+            flash("Empty fields. Please enter a ticker and quantity.", "danger")
             return render_template(
                 "buy_stock.html",
                 market_open=market_open,
@@ -565,7 +585,7 @@ def buyStock():
             quantity = int(quantity)
 
             if (quantity <= 0):
-                flash("Quantity must be positive. Please try again.", "error")
+                flash("Quantity must be positive. Please try again.", "danger")
                 return render_template(
                     "buy_stock.html",
                     market_open=market_open,
@@ -574,7 +594,7 @@ def buyStock():
                     holiday=holiday
                 )
         except:
-            flash("Error converting quantity to int. Please try again.", "error")
+            flash("Error converting quantity to int. Please try again.", "danger")
             return render_template(
                 "buy_stock.html",
                 market_open=market_open,
@@ -587,7 +607,7 @@ def buyStock():
             stock = StockInventory.query.filter_by(ticker=ticker).first()
 
             if not stock:
-                flash("Stock not found. Please enter a valid stock.", "error")
+                flash("Stock not found. Please enter a valid stock.", "danger")
                 return render_template(
                     "buy_stock.html",
                     market_open=market_open,
@@ -599,7 +619,7 @@ def buyStock():
             transactionAmount = stock.currentMktPrice * quantity
 
             if transactionAmount > current_user.availableFunds:
-                flash("Insufficient funds for this transaction. Please deposit funds.", "error")
+                flash("Insufficient funds for this transaction. Please deposit funds.", "danger")
                 return render_template(
                     "buy_stock.html",
                     market_open=market_open,
@@ -609,7 +629,7 @@ def buyStock():
                 )
 
             if quantity > stock.quantity:
-                flash("Inputted quantity exceeds Market Cap. Please enter a different quantity.", "error")
+                flash("Inputted quantity exceeds Market Cap. Please enter a different quantity.", "danger")
                 return render_template(
                     "buy_stock.html",
                     market_open=market_open,
@@ -618,7 +638,7 @@ def buyStock():
                     holiday=holiday
                 )
         except:
-            flash("Error. Please try again.", "error")
+            flash("Error. Please try again.", "danger")
             return render_template(
                 "buy_stock.html",
                 market_open=market_open,
@@ -641,7 +661,7 @@ def buyStock():
             return redirect(url_for("home"))
         except:
             db.session.rollback()
-            flash("Error placing buy order. Please try again.", "error")
+            flash("Error placing buy order. Please try again.", "danger")
             return render_template(
                 "buy_stock.html",
                 market_open=market_open,
@@ -650,13 +670,24 @@ def buyStock():
                 holiday=holiday
             )
 
+    stock = (
+        StockInventory.query.with_entities(
+        StockInventory.ticker,
+        StockInventory.currentMktPrice,
+        StockInventory.initStockPrice
+        )
+        .order_by(StockInventory.ticker)
+        .all()
+        )    
+
     # GET request
     return render_template(
         "buy_stock.html",
         market_open=market_open,
         market_start=market_start,
         market_end=market_end,
-        holiday=holiday
+        holiday=holiday,
+        stock=stock
     )
 
 # Sell Stock Route
@@ -669,7 +700,7 @@ def sellStock():
         quantity = request.form.get("quantity")
 
         if (ticker == "") or (quantity == "") or (ticker is None) or (quantity is None):
-            flash("Empty fields. Please enter a ticker and quantity.", "error")
+            flash("Empty fields. Please enter a ticker and quantity.", "danger")
             return render_template("sell_stock.html")
         
         try:
@@ -677,17 +708,17 @@ def sellStock():
             quantity = int(quantity)
 
             if (quantity <= 0):
-                flash("Quantity must be positive. Please try again.", "error")
+                flash("Quantity must be positive. Please try again.", "danger")
                 return render_template("sell_stock.html")
         except:
-            flash("Error converting quantity to int. Please try again.", "error")
+            flash("Error converting quantity to int. Please try again.", "danger")
             return render_template("sell_stock.html")
         
         try:
             stock = StockInventory.query.filter_by(ticker=ticker).first()
 
             if not stock:
-                flash("Stock not found. Please enter a valid stock.", "error")
+                flash("Stock not found. Please enter a valid stock.", "danger")
                 return render_template("sell_stock.html")
             
             transactionAmount = stock.currentMktPrice * quantity
@@ -698,14 +729,14 @@ def sellStock():
             )
 
             if (position is None) or position.quantity == 0:
-                flash("User does not own this stock. Please purchase stock to sell.", "error")
+                flash("User does not own this stock. Please purchase stock to sell.", "danger")
                 return render_template("sell_stock.html")
             
             if quantity > position.quantity:
-                flash("Cannot sell more than owned shares. Please enter a different quantity.", "error")
+                flash("Cannot sell more than owned shares. Please enter a different quantity.", "danger")
                 return render_template("sell_stock.html")
         except:
-            flash("Error. Please try again.", "error")
+            flash("Error. Please try again.", "danger")
             return render_template("sell_stock.html")
         
         try:
@@ -722,10 +753,21 @@ def sellStock():
             return redirect(url_for("home"))
         except:
             db.session.rollback()
-            flash("Error placing sell order. Please try again.", "error")
+            flash("Error placing sell order. Please try again.", "danger")
             return render_template("sell_stock.html")
+        
+    portfolio = (
+        Portfolio.query.with_entities(
+            Portfolio.ticker,
+            Portfolio.mktPrice,
+            Portfolio.quantity
+        )
+        .filter_by(userId=current_user.userId)
+        .order_by(Portfolio.ticker)
+        .all()
+    )
 
-    return render_template("sell_stock.html")
+    return render_template("sell_stock.html", portfolio=portfolio)
 
 def orderAction(process, amount, quantity, stock):
 
