@@ -2,55 +2,99 @@
 {% block title %}Create Stock{% endblock %}
 {% block content %}
 
-<div>
-  <div>
-    <div>
-      <div>
-        <h5>Create Stock</h5>
+<div class="row justify-content-center">
+  <div class="row mt-1">
+    <div class="col-12 col-lg-6">
+      <div class="card hover-lift rounded-4 overflow-hidden mt-5">
+        <div class="card-body" style="background-color: #F5F5F5;">
+          <h1 class="card-title text-center h4 py-2">Create Stock</h1>
 
-        <form action="{{ url_for('createStock') }}" method="post">
-          <div>
-            <label for="companyName">Company Name</label>
-            <div>
-              <input type="text" id="companyName" name="companyName">
+          <form action="{{ url_for('createStock') }}" method="post" id="buyForm">
+
+
+            <div class="mb-3 px-5">
+              <label for="companyName" class="form-label fs-5">Company Name</label>
+                <input type="text" class="form-control fs-5" id="companyName" name="companyName" style="background-color: #F5F5F5; border: none;">
             </div>
-          </div>
 
-          <div>
-            <label for="companyDesc">Description</label>
-            <div>
-              <input type="text" id="companyDesc" name="companyDesc">
+            <div class="mb-3 px-5">
+              <label for="companyDesc" class="form-label fs-5">Company Description</label>
+                <input type="text" class="form-control fs-5" id="companyDesc" name="companyDesc" style="background-color: #F5F5F5; border: none;">
             </div>
-          </div>
 
-          <div>
-            <label for="ticker">Ticker</label>
-            <div>
-              <input type="text" id="ticker" name="ticker">
+            <div class="mb-3 px-5">
+              <label for="ticker" class="form-label fs-5">Stock Ticker</label>
+                <input type="text" class="form-control fs-5" id="ticker" name="ticker" style="background-color: #F5F5F5; border: none;">
             </div>
-          </div>
 
-          <div>
-            <label for="volume">Volume</label>
-            <div>
-              <input type="number" id="volume" name="volume">
+            <div class="mb-3 px-5">
+              <label for="volume" class="form-label fs-5">Volume</label>
+                <input type="number" class="form-control fs-5" id="volume" name="volume" style="background-color: #F5F5F5; border: none;">
             </div>
-          </div>
 
-          <div>
-            <label for="initStockPrice">Initial Price</label>
-            <div>
-              <input type="number" id="initStockPrice" name="initStockPrice" step="0.01">
+            <div class="mb-3 px-5">
+              <label for="initStockPrice" class="form-label fs-5">Initial Stock Price</label>
+              <div class="input-group">
+                <span class="input-group-text" style="background-color: #F5F5F5; border: none;">$</span>
+                <input type="number" class="form-control fs-5" id="initStockPrice" name="initStockPrice" style="background-color: #F5F5F5; border: none;">
+              </div>
             </div>
-          </div>
 
-          <div>
-            <div>
-              <button type="submit">Submit</button>
-            </div>
-          </div>
-        </form>
+            <div class="d-flex align-items-center my-5 px-5">
+              <button type="button" class="btn btn-primary mb-3 rounded-3 fs-5" style="background-color: #8C1D40; color: #F5F5F5; border: none;" data-bs-toggle="modal" data-bs-target="#confirmation">Submit</button>
+            </div>          
 
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card hover-lift rounded-4 overflow-hidden mt-5" style="height: 704px;">
+        <div class="card-body" style="background-color: #F5F5F5;">
+          <h1 class="card-title text-center h4 py-2">Available Stock</h1>
+
+        <div style="max-height: 675px; overflow-y: auto;">
+          <table class="table table-hover" id="availableStock">
+            <thead>
+              <tr>
+                <th scope="col" style="background-color: #F5F5F5;">Ticker</th>
+                <th scope="col" style="background-color: #F5F5F5;">Initial Price</th>
+                <th scope="col" style="background-color: #F5F5F5;">Current Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for i in stock %}
+              <tr>
+                <th scope="row" style="background-color: #F5F5F5;">{{ i.ticker }}</th>
+                <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.initStockPrice) }}</td>
+                <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.currentMktPrice) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        
+        </div>
+      </div>
+    </div>    
+
+  </div>
+</div>
+
+<div class="modal fade" id="confirmation" tabindex="-1" aria-labelledby="confirmationLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header position-relative">
+        <h1 class="modal-title text-center fs-5 w-100 mb-2" id="confirmationLabel">Create Stock Confirmation</h1>
+        <button type="button" class="btn-close position-absolute end-0 me-2 mb-1" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p class="fs-5 mb-5">Would you like to confirm and create this stock?</p>
+        <div class="d-flex justify-content-center gap-4">
+          <button type="button" class="btn btn-primary fs-5" style="background-color: #FFC627; border: none;" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-secondary fs-5" style="background-color: #8C1D40; border: none;" form="buyForm">Submit</button>
+        </div>
       </div>
     </div>
   </div>

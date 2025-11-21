@@ -11,12 +11,13 @@
       <div class="card hover-lift rounded-4 overflow-hidden mt-4" style="height: 450px;">
         <div class="card-body" style="background-color: #F5F5F5;">
           <h1 class="card-title text-center h4 py-2">Account Metrics</h1>
+
           <div class="row">
             <div class="col ms-5">
               <p class="fw-bold">Balance</p>
               <p class="fs-4 fw-bold card-text">${{ "{:,.2f}".format(current_user.availableFunds) }}</p>
             </div>
-            <div class="ms-5 mt-4">
+            <div class="col ms-5">
               <p class="fw-bold">Return to Date</p>
               <div class="d-flex align-items-center">
                 <p class="fs-5 fw-bold card-text">${{ "{:,.2f}".format(totalReturn) }}</p>
@@ -25,16 +26,45 @@
                     <path fill-rule="evenodd" d="M7.646 2.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 3.707 2.354 9.354a.5.5 0 1 1-.708-.708z"/>
                     <path fill-rule="evenodd" d="M7.646 6.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 7.707l-5.646 5.647a.5.5 0 0 1-.708-.708z"/>
                   </svg>
-                {% elif totalReturn <= 0 %}
+                {% elif totalReturn < 0 %}
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#8C1D40" class="bi bi-chevron-double-down mb-4 mx-2" viewBox="0 0 16 16">
                     <path fill-rule="evenodd" d="M1.646 6.646a.5.5 0 0 1 .708 0L8 12.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
                     <path fill-rule="evenodd" d="M1.646 2.646a.5.5 0 0 1 .708 0L8 8.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
                   </svg> 
-                {% endif %}   
-                </div>
-              
+                {% endif %}
+              </div>
             </div>
           </div>
+
+          <div class="row mt-4">
+            <div class="col ms-5">
+              <p class="fw-bold" style="color: #484848;">Account Value</p> 
+              <p class="fs-5 fw-bold card-text" style="color: #484848;">${{ "{:,.2f}".format(accountValue) }}</p>
+            </div>
+            <div class="col ms-5">
+              <p class="fw-bold" style="color: #484848;">Total Contributions</p> 
+              <p class="fs-5 fw-bold card-text" style="color: #484848;">${{ "{:,.2f}".format(contributions) }}</p>
+            </div>
+          </div>
+
+          <div class="row mt-4">
+            <div class="col ms-5">
+              <a href="{{ url_for('depositFunds') }}" class="btn btn-primary fs-5" style="background-color: #8C1D40; border: none; width: 75%;">Deposit</a>
+            </div>
+            <div class="col ms-5">
+              <a href="{{ url_for('withdrawFunds') }}" class="btn btn-primary fs-5" style="background-color: #8C1D40; border: none; width: 75%;">Withdraw</a>
+            </div>
+          </div>
+
+          <div class="row mt-4">
+            <div class="col ms-5">
+              <a href="{{ url_for('buyStock') }}" class="btn btn-primary fs-5" style="background-color: #8C1D40; border: none; width: 75%;">Buy</a>
+            </div>
+            <div class="col ms-5">
+              <a href="{{ url_for('sellStock') }}" class="btn btn-primary fs-5" style="background-color: #8C1D40; border: none; width: 75%;">Sell</a>
+            </div>
+          </div>
+
         </div>
       </div>      
     </div>
@@ -58,7 +88,7 @@
           <h1 class="card-title text-center h4 py-2">Available Stock (Live Feed)</h1>
 
 
-          <div style="max-height: 450px; overflow-y: auto;">
+          <div style="height: 350px; overflow-y: auto;">
             <table class="table table-hover" id="availableStock">
               <thead>
                 <tr>
@@ -88,7 +118,7 @@
         <div class="card-body" style="background-color: #F5F5F5;">
           <h1 class="card-title text-center h4 py-2">Holdings</h1>
 
-          <div style="max-height: 450px; overflow-y: auto;">
+          <div style="max-height: 350px; overflow-y: auto;">
             <table class="table table-hover">
               <thead>
                 <tr>

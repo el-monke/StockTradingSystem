@@ -1,92 +1,88 @@
 {% extends "base.html" %}
-{% block title %}Home{% endblock %}
+{% block title %}Home - Admin{% endblock %}
 {% block content %}
 
 {% if current_user.is_authenticated %}
 
-  <div>
-    <div>
-      <div>
-        <div>
-          <h5>Admin Dashboard</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Account Number</th>
-                <th>Balance</th>
-                <th>Update/Delete</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for i in user %}
-              <tr>
-                <td>{{ i.fullName }}</td>
-                <td>{{ i.email }}</td>
-                <td>{{ i.customerAccountNumber }}</td>
-                <td>${{ i.availableFunds }}</td>
-                {# <td>
-                  <a href="{{ url_for('update_user', user_id=i.userId) }}">Update</a>
-                  <form method="POST" action="{{ url_for('delete_user', user_id=i.userId) }}">
-                    <button type="submit">Delete</button>
-                  </form>
-                </td> #}
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+<div class="container">
+  <div class="row">
+
+    <div class="col-12 col-lg-6">
+      <div class="card hover-lift rounded-4 overflow-hidden mt-4" style="height: 850px;">
+        <div class="card-body" style="background-color: #F5F5F5;">
+          <h1 class="card-title text-center h4 py-2">User Management</h1>
+
+          <table class="table table-hover">
+              <thead>
+                  <tr>
+                      <th scope="col" style="background-color: #F5F5F5;">Name</th>
+                      <th scope="col" style="background-color: #F5F5F5;">Username</th>
+                      <th scope="col" style="background-color: #F5F5F5;">Balance</th>
+                      <th scope="col" style="background-color: #F5F5F5;">Update/Delete</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  {% for i in user %}
+                  <tr>
+                      <td style="background-color: #F5F5F5;">{{ i.fullName }}</td>
+                      <td style="background-color: #F5F5F5;">{{ i.username }}</td>
+                      <td style="background-color: #F5F5F5;">${{ i.availableFunds }}</td>
+                      <td class="d-flex gap-2" style="background-color: #F5F5F5;">
+                          <a class="btn btn-sm btn-primary" href="{{ url_for('updateUser', user_id=i.userId) }}" style="background-color: #FFC627;color: #F5F5F5;border:none;">Update</a>
+                          <form method="POST" action="{{ url_for('deleteUser', user_id=i.userId)}}">
+                              <button type="submit" class="btn btn-sm btn-primary" style="background-color: #8C1D40;color: #F5F5F5;border:none;">Delete</button>
+                          </form>
+                      </td>
+                                    
+                  </tr>
+                  {% endfor %}
+              </tbody>
+          </table>   
+          
         </div>
       </div>
+    </div>
 
-      <div>
-        <div>
-          <div>
-            <h5>Stocks</h5>
-            <table>
+    <div class="col-12 col-lg-6">
+
+      <div class="card hover-lift rounded-4 overflow-hidden mt-4" style="height: 400px;">
+        <div class="card-body" style="background-color: #F5F5F5;">
+          <h1 class="card-title text-center h4 py-2">Available Stock</h1>
+
+          <div style="height: 315px; overflow-y: auto;">
+            <table class="table table-hover" id="availableStock">
               <thead>
                 <tr>
-                  <th>Ticker</th>
-                  <th>Qty</th>
-                  <th>Init Price</th>
-                  <th>Current Price</th>
+                  <th scope="col" style="background-color: #F5F5F5;">Ticker</th>
+                  <th scope="col" style="background-color: #F5F5F5;">Initial Price</th>
+                  <th scope="col" style="background-color: #F5F5F5;">Current Price</th>
                 </tr>
               </thead>
-              <tbody id="stock-table-body">
+              <tbody>
                 {% for i in stock %}
                 <tr>
-                  <td>{{ i.ticker }}</td>
-                  <td>{{ i.quantity }}</td>
-                  <td>${{ i.initStockPrice }}</td>
-                  <td>${{ i.currentMktPrice }}</td>
+                  <th scope="row" style="background-color: #F5F5F5;">{{ i.ticker }}</th>
+                  <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.initStockPrice) }}</td>
+                  <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.currentMktPrice) }}</td>
                 </tr>
                 {% endfor %}
               </tbody>
             </table>
-
-            <script>
-            function updateStockPrices() {
-              fetch('/api/stock_prices')
-                .then(response => response.json())
-                .then(data => {
-                  const tbody = document.getElementById('stock-table-body');
-                  if (!tbody) return;
-                  tbody.innerHTML = '';
-                  data.forEach(function(row) {
-                    tbody.innerHTML += '<tr><td>' + row.ticker + '</td><td>' +
-                      row.quantity + '</td><td>$' + row.initStockPrice +
-                      '</td><td>$' + row.currentMktPrice + '</td></tr>';
-                  });
-                });
-            }
-            setInterval(updateStockPrices, 5000);
-            </script>
-
           </div>
+
+        </div>
+      </div>
+
+      <div class="card hover-lift rounded-4 overflow-hidden mt-5" style="height: 400px;">
+        <div class="card-body" style="background-color: #F5F5F5;">
+          <h1 class="card-title text-center h4 py-2">Quick Actions</h1>
         </div>
       </div>
     </div>
+
   </div>
+</div>
+
 {% else %}
   <h1>You are not logged in</h1>
 {% endif %}

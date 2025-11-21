@@ -186,10 +186,10 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
-            flash("Please login to access this webpage.", "error")
+            flash("Please login to access this webpage.", "danger")
             return redirect(url_for("signIn"))
         elif not isinstance(current_user, Admin):
-            flash("Please login with an Admin account to access this webpage.", "error")
+            flash("Please login with an Admin account to access this webpage.", "danger")
             return redirect(url_for("home"))
         else:
             return f(*args, **kwargs)
@@ -255,11 +255,11 @@ def createaccount_admin():
         confPassword = request.form.get("confPassword")      
 
         if (fullName == "") or (username == "") or (email == "") or (password == "") or (confPassword == ""):
-            flash("Empty fields. Please try again.", "error")
+            flash("Empty fields. Please try again.", "danger")
             return render_template("create_account_admin.html")
         
         if password != confPassword:
-            flash("Passwords do not match. Please try again.", "error")
+            flash("Passwords do not match. Please try again.", "danger")
             return render_template("create_account_admin.html")
         
         try:
@@ -279,7 +279,7 @@ def createaccount_admin():
         
         except:
             db.session.rollback()
-            flash("Error. Please try again.", "error")
+            flash("Error. Please try again.", "danger")
             return render_template("create_account_admin.html")    
                 
     return render_template("create_account_admin.html")
@@ -312,6 +312,76 @@ def signIn():
             return render_template("sign_in.html")
         
     return render_template("sign_in.html")
+
+@app.route('/home/admin/updateuser/<int:user_id>', methods=["GET", "POST"])
+@admin_required
+def updateUser(user_id):
+    user = User.query.get_or_404(user_id)
+
+    portfolio = (
+        Portfolio.query.with_entities(
+            Portfolio.ticker,
+            Portfolio.mktPrice,
+            Portfolio.quantity
+        )
+        .filter_by(userId=user.userId)
+        .order_by(Portfolio.ticker)
+        .all()
+    )
+
+    if request.method == "POST":
+        fullName = request.form.get("fullName")
+        username = request.form.get("username")
+        email = request.form.get("email")
+        availableFunds = request.form.get("availableFunds")
+
+        try:
+            if fullName:
+                user.fullName = fullName
+            elif username:
+                user.username = username
+            elif email:
+                user.email = email
+            elif availableFunds:
+                user.availableFunds = availableFunds
+            else:
+                x = 1 / 0    
+            user.updatedAt = datetime.datetime.now()
+        except:
+            flash(f"No change inputted. Please enter values.", "danger")
+            return redirect(url_for('updateUser', user_id=user.userId))
+
+        try:
+            db.session.commit()
+            flash(f"User {user.username} updated successfully!", "success")
+            return redirect(url_for('homeAdmin'))
+        except:
+            db.session.rollback()
+            flash(f"Error updating user. Please try again.", "danger")
+            return redirect(url_for('homeAdmin'))
+
+
+    return render_template("update_user.html", user=user, portfolio=portfolio)
+
+@app.route('/home/admin/deleteuser/<int:user_id>', methods=["POST"])
+@admin_required
+def deleteUser(user_id):
+    user = User.query.get_or_404(user_id)
+
+    if request.method == "POST":
+
+        try:
+            Portfolio.query.filter_by(userId=user.userId).delete()
+            OrderHistory.query.filter_by(userId=user.userId).delete()
+            FinancialTransaction.query.filter_by(username=user.username).delete()
+
+            db.session.delete(user)
+            db.session.commit()
+            flash(f"User {user.username} deleted successfully!", "success")
+        except:
+            db.session.rollback()
+            flash(f"Error deleting user. Please try again.", "danger")
+    return redirect(url_for('homeAdmin'))
 
 # END USER AUTHENTICATION---------------------------------------------------------------------------
 
@@ -381,17 +451,17 @@ def home():
 
         portfolioValue = calculateValue()
         contributions = calculateContribution()
+        accountValue = current_user.availableFunds + portfolioValue
         totalReturn = (current_user.availableFunds + portfolioValue) - contributions
-        
 
         labels = ["Liquid", "Invested", "Return"]
         data = [current_user.availableFunds, portfolioValue, totalReturn]
 
     except:
-        flash("Error retrieving values from DB.", "error")
+        flash("Error retrieving values from DB.", "danger")
         return render_template("home.html")
 
-    return render_template("home.html", stock=stock, portfolio=portfolio, totalReturn=totalReturn, pieLabels=labels, pieData=data)
+    return render_template("home.html", stock=stock, portfolio=portfolio, contributions=contributions, accountValue=accountValue, totalReturn=totalReturn, pieLabels=labels, pieData=data)
     
 # Home Route for Admin
 @app.route("/home/admin")
@@ -400,14 +470,7 @@ def homeAdmin():
 
     try:
         user = (
-            User.query.with_entities(
-                User.fullName,
-                User.email,
-                User.username,
-                User.availableFunds
-            )
-            .order_by(User.fullName)
-            .all()
+            User.query.order_by(User.fullName).all()
         )
 
         stock = (
@@ -421,7 +484,7 @@ def homeAdmin():
             .all()
         )     
     except:
-        flash("Error retrieving values from DB", "error")
+        flash("Error retrieving values from DB", "danger")
         return render_template("home.html")            
 
     return render_template("home_admin.html", user=user, stock=stock)
@@ -439,17 +502,17 @@ def depositFunds():
         amount = request.form.get("amount")
 
         if amount == "":
-            flash("Please enter a deposit amount.", "error")
+            flash("Please enter a deposit amount.", "danger")
             return render_template("deposit.html")
         
         try:
             amount = float(amount)
 
             if (amount <= 0):
-                flash("Deposit amount must be non-negative. Please try again.", "error")
+                flash("Deposit amount must be non-negative. Please try again.", "danger")
                 return render_template("deposit.html")
         except:
-            flash("Error converting deposit amount to float. Please try again.", "error")
+            flash("Error converting deposit amount to float. Please try again.", "danger")
             return render_template("deposit.html")
         
         try:
@@ -460,7 +523,7 @@ def depositFunds():
         
         except:
             db.session.rollback()
-            flash("Error. Please try again.", "error")
+            flash("Error. Please try again.", "danger")
             return render_template("deposit.html")
 
     transactions = (
@@ -496,21 +559,21 @@ def withdrawFunds():
         amount = request.form.get("amount")
 
         if amount == "":
-            flash("Please enter a withdrawal amount.", "error")
+            flash("Please enter a withdrawal amount.", "danger")
             return render_template("withdraw.html")
         
         try:
             amount = float(amount)
 
             if (amount <= 0):
-                flash("Withdrawal amount must be positive. Please try again.", "error")
+                flash("Withdrawal amount must be positive. Please try again.", "danger")
                 return render_template("withdraw.html")
             
             if (amount > current_user.availableFunds):
-                flash("Cannot withdraw more than the user's Balance. Please try again.", "error")
+                flash("Cannot withdraw more than the user's Balance. Please try again.", "danger")
                 return render_template("withdraw.html")
         except:
-            flash("Error converting withdrawal amount to float. Please try again.", "error")
+            flash("Error converting withdrawal amount to float. Please try again.", "danger")
             return render_template("withdraw.html")
         
         try:
@@ -520,7 +583,7 @@ def withdrawFunds():
             return redirect(url_for("home"))
         except:
             db.session.rollback()
-            flash("Error. Please try again.", "error")
+            flash("Error. Please try again.", "danger")
             return render_template("withdraw.html")
 
     transactions = (
@@ -959,7 +1022,7 @@ def createStock():
         initStockPrice = request.form.get("initStockPrice")
 
         if (companyName == "") or (companyName is None) or (companyDesc == "") or (companyDesc is None) or (ticker == "") or (ticker is None) or (volume == "") or (volume is None) or (initStockPrice == "") or (initStockPrice is None):
-            flash("Empty fields. Please enter a name, description, ticker, volume, and price.", "error")
+            flash("Empty fields. Please enter a name, description, ticker, volume, and price.", "danger")
             return render_template("create_stock.html")
 
         try:
@@ -968,10 +1031,10 @@ def createStock():
             initStockPrice = float(initStockPrice)
 
             if (volume <= 0) or (initStockPrice <= 0):
-                flash("Volume and Price must be positive. Please try again.", "error")
+                flash("Volume and Price must be positive. Please try again.", "danger")
                 return render_template("create_stock.html")
         except:
-            flash("Error converting values. Please try again.", "error")
+            flash("Error converting values. Please try again.", "danger")
             return render_template("create_stock.html")
 
         try:
@@ -979,7 +1042,7 @@ def createStock():
             stock = StockInventory.query.filter_by(ticker=ticker).first()
 
             if (company) or (stock):
-                flash("Stock/Company already exists. Please create a new stock.", "error")
+                flash("Stock/Company already exists. Please create a new stock.", "danger")
                 return render_template("create_stock.html")
 
             company = addCompany(companyName, companyDesc, ticker, volume, initStockPrice)
@@ -992,12 +1055,20 @@ def createStock():
             return redirect(url_for("homeAdmin"))
         except:
             db.session.rollback()
-            flash("Error creating stock. Please try again.", "error")
+            flash("Error creating stock. Please try again.", "danger")
             return render_template("create_stock.html")
-            
+    
+    stock = (
+        StockInventory.query.with_entities(
+            StockInventory.ticker,
+            StockInventory.currentMktPrice,
+            StockInventory.initStockPrice
+        )
+        .order_by(StockInventory.ticker)
+        .all()
+    )   
 
-
-    return render_template("create_stock.html")
+    return render_template("create_stock.html", stock=stock)
 
 def addCompany(name, description, ticker, volume, initStockPrice):
 
@@ -1061,7 +1132,7 @@ def changeMktHrs():
                 return redirect(url_for("changeMktHrs"))
             except:
                 db.session.rollback()
-                flash("Error saving closed date.", "error")
+                flash("Error saving closed date.", "danger")
   
         day = request.form.get("dayOfWeek", "").strip()
         startTime = request.form.get("startTime", "").strip()
@@ -1072,7 +1143,7 @@ def changeMktHrs():
                 start_time = datetime.datetime.strptime(startTime, "%H:%M").time()
                 end_time = datetime.datetime.strptime(endTime, "%H:%M").time()
             except:
-                flash("Time must be in HH:MM format (HH:MM).", "error")
+                flash("Time must be in HH:MM format (HH:MM).", "danger")
                 return render_template("change_mkt_hrs.html")
 
             day = day[:3].capitalize()
@@ -1103,7 +1174,7 @@ def changeMktHrs():
                 return redirect(url_for("changeMktHrs"))
             except:
                 db.session.rollback()
-                flash("Error saving market hours.", "error")
+                flash("Error saving market hours.", "danger")
 
     workingDays = WorkingDay.query.filter_by(
         adminId=current_user.adminId
@@ -1121,13 +1192,13 @@ def changeMktSchedule():
         reason = request.form.get("reason", "").strip()
 
         if not holidayDate:
-            flash("Please enter a date.", "error")
+            flash("Please enter a date.", "danger")
             return render_template("change_mkt_schedule.html")
 
         try:
             date_obj = datetime.datetime.strptime(holidayDate, "%Y-%m-%d")
         except:
-            flash("Date must be in YYYY-MM-DD format.", "error")
+            flash("Date must be in YYYY-MM-DD format.", "danger")
             return render_template("change_mkt_schedule.html")
 
         try:
@@ -1144,7 +1215,7 @@ def changeMktSchedule():
             return redirect(url_for("changeMktSchedule"))
         except:
             db.session.rollback()
-            flash("Error saving market schedule.", "error")
+            flash("Error saving market schedule.", "danger")
 
     exceptions = Exception.query.filter_by(
         adminId=current_user.adminId
