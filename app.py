@@ -1087,17 +1087,31 @@ def openAllMarkets():
 @admin_required
 def changeMktSchedule():
     if request.method == "POST":
+
+        action = request.form.get("action", "").strip()
+
+        if action == "clear_all":
+            try:
+                Exception.query.filter_by(adminId=current_user.adminId).delete()
+                db.session.commit()
+                flash("All market closures cleared. Market is now open.", "success")
+                return redirect(url_for("changeMktSchedule"))
+            except:
+                db.session.rollback()
+                flash("Error clearing market schedule.", "danger")
+                return redirect(url_for("changeMktSchedule"))
+
         holidayDate = request.form.get("holidayDate", "").strip()
         reason = request.form.get("reason", "").strip()
 
         if not holidayDate:
-            flash("Please enter a date.", "error")
+            flash("Please enter a date.", "danger")
             return render_template("change_mkt_schedule.html")
 
         try:
             date_obj = datetime.datetime.strptime(holidayDate, "%Y-%m-%d")
         except:
-            flash("Date must be in YYYY-MM-DD format.", "error")
+            flash("Date must be in YYYY-MM-DD format.", "danger")
             return render_template("change_mkt_schedule.html")
 
         try:
@@ -1114,7 +1128,7 @@ def changeMktSchedule():
             return redirect(url_for("changeMktSchedule"))
         except:
             db.session.rollback()
-            flash("Error saving market schedule.", "error")
+            flash("Error saving market schedule.", "danger")
 
     exceptions = Exception.query.filter_by(
         adminId=current_user.adminId
