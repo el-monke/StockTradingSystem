@@ -95,14 +95,30 @@
                   <th scope="col" style="background-color: #F5F5F5;">Ticker</th>
                   <th scope="col" style="background-color: #F5F5F5;">Initial Price</th>
                   <th scope="col" style="background-color: #F5F5F5;">Current Price</th>
+                  <th scope="col" style="background-color: #F5F5F5;">Open</th>
+                  <th scope="col" style="background-color: #F5F5F5;">High</th>
+                  <th scope="col" style="background-color: #F5F5F5;">Low</th>
+                  <th scope="col" style="background-color: #F5F5F5;">Volume</th>
+                  <th scope="col" style="background-color: #F5F5F5;">Market Cap</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="available-stock-table-body">
                 {% for i in stock %}
                 <tr onclick="document.getElementById('ticker').value='{{ i.ticker}}';">
                   <th scope="row" style="background-color: #F5F5F5;">{{ i.ticker }}</th>
                   <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.initStockPrice) }}</td>
                   <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.currentMktPrice) }}</td>
+                  <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.dailyOpenPrice or 0) }}</td>
+                  <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.dailyHighPrice or 0) }}</td>
+                  <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.dailyLowPrice or 0) }}</td>
+                  <td style="background-color: #F5F5F5;">{{ i.volume or 0 }}</td>
+                  <td style="background-color: #F5F5F5;">
+                    {% if i.currentMktPrice and i.company.stockTotalQty %}
+                      ${{ "{:,.0f}".format(i.currentMktPrice * i.company.stockTotalQty) }}
+                    {% else %}
+                      $0
+                    {% endif %}
+                  </td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -146,29 +162,51 @@
   </div>
 </div>
 
-<!----
-            <script>
+
+          <script>
             function updateAvailableStockPrices() {
-              fetch('/api/stock_prices')
-                .then(response => response.json())
-                .then(data => {
-                  const tbody = document.getElementById('available-stock-table-body');
-                  if (!tbody) return;
+    fetch('/api/stock_prices')
+      .then(response => response.json())
+      .then(data => {
+        const tbody = document.getElementById('available-stock-table-body');
+        if (!tbody) return;
 
-                  tbody.innerHTML = '';
-                  data.forEach(function(row) {
-                    tbody.innerHTML += '<tr><td>' + row.ticker +
-                      '</td><td>$' + row.currentMktPrice +
-                      '</td><td>$' + row.initStockPrice + '</td></tr>';
-                  });
-                });
-              }
-// run once on load
-updateAvailableStockPrices();
+        tbody.innerHTML = '';
 
-// then every 5 seconds
-setInterval(updateAvailableStockPrices, 5000);
-</script> --->
+        data.forEach(function (row) {
+          // Make sure all values are defined numbers
+          const initPrice    = Number(row.initStockPrice    ?? 0);
+          const currentPrice = Number(row.currentMktPrice   ?? 0);
+          const openPrice    = Number(row.dailyOpenPrice    ?? initPrice);
+          const highPrice    = Number(row.dailyHighPrice    ?? currentPrice);
+          const lowPrice     = Number(row.dailyLowPrice     ?? currentPrice);
+          const volume       = Number(row.volume            ?? 0);
+          const marketCap    = Number(row.marketCap         ?? 0);
+
+          tbody.innerHTML += `
+            <tr onclick="document.getElementById('ticker').value='${row.ticker}';">
+              <th scope="row" style="background-color: #F5F5F5;">${row.ticker}</th>
+              <td style="background-color: #F5F5F5;">$${initPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">$${currentPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">$${openPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">$${highPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">$${lowPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">${volume.toLocaleString()}</td>
+              <td style="background-color: #F5F5F5;">$${marketCap.toLocaleString()}</td>
+            </tr>`;
+        });
+      })
+      .catch(err => {
+        console.error('Error updating available stock prices:', err);
+      });
+  }
+
+  // run once on load
+  updateAvailableStockPrices();
+
+  // then every 15 seconds
+  setInterval(updateAvailableStockPrices, 15000);
+</script>
 
 <script>
   const chartArea = document.getElementById('portfolioView');

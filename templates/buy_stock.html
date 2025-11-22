@@ -96,4 +96,37 @@
   </div>
 </div>
 
+<script>
+  function updateAvailableStockPrices() {
+    fetch('/api/stock_prices')
+      .then(response => response.json())
+      .then(data => {
+        const tbody = document.getElementById('available-stock-table-body');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        data.forEach(function (row) {
+          const marketCap = row.marketCap || 0;
+          const volume = row.volume || 0;
+
+          tbody.innerHTML += `
+            <tr onclick="document.getElementById('ticker').value='${row.ticker}';">
+              <th scope="row" style="background-color: #F5F5F5;">${row.ticker}</th>
+              <td style="background-color: #F5F5F5;">$${row.initStockPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">$${row.currentMktPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">$${row.dailyOpenPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">$${row.dailyHighPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">$${row.dailyLowPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">${volume.toLocaleString()}</td>
+              <td style="background-color: #F5F5F5;">$${marketCap.toLocaleString()}</td>
+            </tr>`;
+        });
+      });
+  }
+
+  updateAvailableStockPrices();
+  setInterval(updateAvailableStockPrices, 15000);
+</script>
+
 {% endblock %}

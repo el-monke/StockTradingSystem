@@ -14,13 +14,17 @@ import builtins
 from decimal import Decimal
 from apscheduler.schedulers.background import BackgroundScheduler
 import random
+from sqlalchemy.orm import joinedload
+import builtins
+
+
 
 app = Flask(__name__)
 
 # DATABASE FUNCTIONS------------------------------------------------------------------------------------
 
 # DB configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password@localhost/sts_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Sandwich13!!!@localhost/sts_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your-secret-key'
 
@@ -68,6 +72,14 @@ class StockInventory(db.Model):
     quantity = db.Column(db.Integer)
     initStockPrice = db.Column(db.Float)
     currentMktPrice = db.Column(db.Float)
+    createdAt = db.Column(db.DateTime, nullable=False)
+    updatedAt = db.Column(db.DateTime, nullable=False)
+    volume = db.Column(db.Integer, default=0)                # today's volume
+    dailyOpenPrice = db.Column(db.Float)                     # open for the day
+    dailyHighPrice = db.Column(db.Float)                     # intraday high
+    dailyLowPrice = db.Column(db.Float)                      # intraday low
+    dailyDate = db.Column(db.Date)                           # which day these stats belong to
+
     createdAt = db.Column(db.DateTime, nullable=False)
     updatedAt = db.Column(db.DateTime, nullable=False)
 
@@ -426,16 +438,12 @@ def get_market_status(target_date=None):
 @app.route("/home")
 @login_required
 def home():
-
     try:
         stock = (
-            StockInventory.query.with_entities(
-            StockInventory.ticker,
-            StockInventory.currentMktPrice,
-            StockInventory.initStockPrice
-            )
-            .order_by(StockInventory.ticker)
-            .all()
+            StockInventory.query
+                .options(joinedload(StockInventory.company))
+                .order_by(StockInventory.ticker)
+                .all()
         )
 
         portfolio = (
@@ -457,11 +465,29 @@ def home():
         labels = ["Liquid", "Invested", "Return"]
         data = [current_user.availableFunds, portfolioValue, totalReturn]
 
-    except:
-        flash("Error retrieving values from DB.", "danger")
-        return render_template("home.html")
+    except builtins.Exception as e:  # 👈 use built-in Exception explicitly
+        flash(f"Error retrieving values from DB: {e}", "danger")
 
-    return render_template("home.html", stock=stock, portfolio=portfolio, contributions=contributions, accountValue=accountValue, totalReturn=totalReturn, pieLabels=labels, pieData=data)
+        # safe defaults so template doesn't crash
+        stock = []
+        portfolio = []
+        portfolioValue = 0.0
+        contributions = 0.0
+        accountValue = float(getattr(current_user, "availableFunds", 0) or 0)
+        totalReturn = 0.0
+        labels = ["Liquid", "Invested", "Return"]
+        data = [accountValue, 0.0, 0.0]
+
+    return render_template(
+        "home.html",
+        stock=stock,
+        portfolio=portfolio,
+        contributions=contributions,
+        accountValue=accountValue,
+        totalReturn=totalReturn,
+        pieLabels=labels,
+        pieData=data,
+    )
     
 # Home Route for Admin
 @app.route("/home/admin")
@@ -953,25 +979,54 @@ def _update_stock_prices():
     Simple random-walk price generator.
     Called whenever /api/stock_prices is hit.
     """
+    now = datetime.datetime.now()
+    today = now.date()
+
+    # Check if the market is open for *today*
+    market_open, market_start, market_end, holiday = get_market_status(today)
+
     stocks = StockInventory.query.all()
 
     for stock in stocks:
-        # If no current price yet, start from initStockPrice
+        # Ensure we have a base price
         if stock.currentMktPrice is None:
             stock.currentMktPrice = stock.initStockPrice or 0.0
 
-        # Random change between -5% and +5%
-        change_pct = random.uniform(-0.05, 0.05)
+        # If this is a new trading day and market is open, reset daily stats
+        if stock.dailyDate != today and market_open:
+            base_price = float(stock.currentMktPrice or stock.initStockPrice or 0.0)
+            stock.dailyDate = today
+            stock.dailyOpenPrice = base_price
+            stock.dailyHighPrice = base_price
+            stock.dailyLowPrice = base_price
+            stock.volume = 0
 
+        # If market is closed, freeze prices
+        if not market_open:
+            continue
+
+        # Random change between -3% and +3%
+        change_pct = random.uniform(-0.03, 0.03)
         new_price = stock.currentMktPrice * (1 + change_pct)
 
-        # Never allow 0 or negative prices
+        # Prevent zero/negative prices
         if new_price < 0.01:
             new_price = 0.01
 
-        # Round to 2 decimals (like a real stock price)
-        stock.currentMktPrice = round(new_price, 2)
-        stock.updatedAt = datetime.datetime.now()
+        new_price = round(new_price, 2)
+        stock.currentMktPrice = new_price
+        stock.updatedAt = now
+
+        # Update daily high/low
+        if stock.dailyHighPrice is None or new_price > stock.dailyHighPrice:
+            stock.dailyHighPrice = new_price
+        if stock.dailyLowPrice is None or new_price < stock.dailyLowPrice:
+            stock.dailyLowPrice = new_price
+
+        # Fake some trading volume each tick
+        if stock.volume is None:
+            stock.volume = 0
+        stock.volume += random.randint(0, 1000)
 
     db.session.commit()
 
@@ -987,21 +1042,42 @@ def api_stock_prices():
     _update_stock_prices()
 
     stocks = (
-        StockInventory.query.with_entities(
+        db.session.query(
             StockInventory.ticker,
             StockInventory.currentMktPrice,
-            StockInventory.initStockPrice
+            StockInventory.initStockPrice,
+            StockInventory.volume,
+            StockInventory.dailyOpenPrice,
+            StockInventory.dailyHighPrice,
+            StockInventory.dailyLowPrice,
+            Company.stockTotalQty
         )
+        .join(Company, StockInventory.companyId == Company.companyId)
         .order_by(StockInventory.ticker)
         .all()
     )
 
     data = []
     for s in stocks:
+        current = float(s.currentMktPrice or 0.0)
+        init_price = float(s.initStockPrice or 0.0)
+        volume = int(s.volume or 0)
+        open_price = float(s.dailyOpenPrice or 0.0)
+        high_price = float(s.dailyHighPrice or 0.0)
+        low_price = float(s.dailyLowPrice or 0.0)
+        total_qty = int(s.stockTotalQty or 0)
+
+        market_cap = current * total_qty if total_qty > 0 else 0.0
+
         data.append({
             "ticker": s.ticker,
-            "currentMktPrice": float(s.currentMktPrice or 0.0),
-            "initStockPrice": float(s.initStockPrice or 0.0),
+            "currentMktPrice": current,
+            "initStockPrice": init_price,
+            "volume": volume,
+            "dailyOpenPrice": open_price,
+            "dailyHighPrice": high_price,
+            "dailyLowPrice": low_price,
+            "marketCap": market_cap,
         })
 
     return jsonify(data)
