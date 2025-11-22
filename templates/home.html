@@ -174,7 +174,7 @@
         tbody.innerHTML = '';
 
         data.forEach(function (row) {
-          // Make sure all values are defined numbers
+          
           const initPrice    = Number(row.initStockPrice    ?? 0);
           const currentPrice = Number(row.currentMktPrice   ?? 0);
           const openPrice    = Number(row.dailyOpenPrice    ?? initPrice);
@@ -201,10 +201,8 @@
       });
   }
 
-  // run once on load
   updateAvailableStockPrices();
 
-  // then every 15 seconds
   setInterval(updateAvailableStockPrices, 15000);
 </script>
 

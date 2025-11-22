@@ -412,17 +412,14 @@ def get_market_status(target_date=None):
         func.date(Exception.holidayDate) == target_date
     ).first()
 
-    # Default
     market_open = False
     market_start = None
     market_end = None
 
-    # Market cannot open if no working day OR if it's a holiday
     if wd and not holiday:
         market_start = wd.startTime
         market_end = wd.endTime
 
-        # Check time only if it's today
         if target_date == now.date():
             current = now.time()
             if market_start <= current <= market_end:
@@ -465,10 +462,9 @@ def home():
         labels = ["Liquid", "Invested", "Return"]
         data = [current_user.availableFunds, portfolioValue, totalReturn]
 
-    except builtins.Exception as e:  # 👈 use built-in Exception explicitly
+    except builtins.Exception as e: 
         flash(f"Error retrieving values from DB: {e}", "danger")
 
-        # safe defaults so template doesn't crash
         stock = []
         portfolio = []
         portfolioValue = 0.0
@@ -640,7 +636,6 @@ def withdrawAction(amount):
 @app.route("/home/buystock", methods=["GET", "POST"])
 @login_required
 def buyStock():
-    # Compute market status once per request (for today)
     market_open, market_start, market_end, holiday = get_market_status()
 
     if request.method == "POST":
@@ -961,7 +956,6 @@ def calculateContribution():
 @app.route("/home/order_history")
 @login_required
 def viewOrderHistory():
-    # Get all orders for the logged-in user, most recent first
     orders = (
         OrderHistory.query
         .filter_by(userId=current_user.userId)
@@ -975,24 +969,18 @@ def viewOrderHistory():
 
 # BRETT: RANDOM NUMBER GENERATION -------------------------------------------------------------------
 def _update_stock_prices():
-    """
-    Simple random-walk price generator.
-    Called whenever /api/stock_prices is hit.
-    """
     now = datetime.datetime.now()
     today = now.date()
 
-    # Check if the market is open for *today*
     market_open, market_start, market_end, holiday = get_market_status(today)
 
     stocks = StockInventory.query.all()
 
     for stock in stocks:
-        # Ensure we have a base price
+       
         if stock.currentMktPrice is None:
             stock.currentMktPrice = stock.initStockPrice or 0.0
 
-        # If this is a new trading day and market is open, reset daily stats
         if stock.dailyDate != today and market_open:
             base_price = float(stock.currentMktPrice or stock.initStockPrice or 0.0)
             stock.dailyDate = today
@@ -1001,15 +989,12 @@ def _update_stock_prices():
             stock.dailyLowPrice = base_price
             stock.volume = 0
 
-        # If market is closed, freeze prices
         if not market_open:
             continue
 
-        # Random change between -3% and +3%
         change_pct = random.uniform(-0.03, 0.03)
         new_price = stock.currentMktPrice * (1 + change_pct)
 
-        # Prevent zero/negative prices
         if new_price < 0.01:
             new_price = 0.01
 
@@ -1017,13 +1002,11 @@ def _update_stock_prices():
         stock.currentMktPrice = new_price
         stock.updatedAt = now
 
-        # Update daily high/low
         if stock.dailyHighPrice is None or new_price > stock.dailyHighPrice:
             stock.dailyHighPrice = new_price
         if stock.dailyLowPrice is None or new_price < stock.dailyLowPrice:
             stock.dailyLowPrice = new_price
 
-        # Fake some trading volume each tick
         if stock.volume is None:
             stock.volume = 0
         stock.volume += random.randint(0, 1000)
@@ -1034,11 +1017,6 @@ def _update_stock_prices():
 @app.route("/api/stock_prices")
 @login_required
 def api_stock_prices():
-    """
-    Returns the latest stock prices as JSON.
-    Also updates prices each time it is called.
-    home.html and home_admin.html poll this.
-    """
     _update_stock_prices()
 
     stocks = (
