@@ -1069,19 +1069,6 @@ def changeMktHrs():
 
     return render_template("change_mkt_hrs.html", workingDays=workingDays, exceptions=exceptions)
 
-@app.route("/home/admin/openallmarkets", methods=["POST"])
-@admin_required
-def openAllMarkets():
-    try:
-        Exception.query.filter_by(adminId=current_user.adminId).delete()
-        db.session.commit()
-        flash("All market closures cleared. Market is now open.", "success")
-    except:
-        db.session.rollback()
-        flash("Error clearing market closures.", "error")
-
-    return redirect(url_for("changeMktSchedule"))
-
 #Mkt schedule begins
 @app.route("/home/admin/changemktschedule", methods=["GET", "POST"])
 @admin_required
