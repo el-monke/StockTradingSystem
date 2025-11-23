@@ -81,6 +81,7 @@ class StockInventory(db.Model):
     dailyHighPrice = db.Column(db.Float)                     # intraday high
     dailyLowPrice = db.Column(db.Float)                      # intraday low
     dailyDate = db.Column(db.Date)                           # which day these stats belong to
+    company = db.relationship("Company", backref="stock")
 
     createdAt = db.Column(db.DateTime, nullable=False)
     updatedAt = db.Column(db.DateTime, nullable=False)
@@ -429,6 +430,14 @@ def get_market_status(target_date=None):
 
     return market_open, market_start, market_end, holiday
 
+@app.context_processor
+def injectMktStatus():
+    market_open = get_market_status()[0]
+    market_start = get_market_status()[1]
+    market_end = get_market_status()[2]
+    holiday = get_market_status()[3]
+
+    return dict(market_open=market_open, market_start=market_start, market_end=market_end, holiday=holiday)
 # -------------------------------------------------------------------
 
 # HOME ROUTES---------------------------------------------------------------------------------------
@@ -507,6 +516,7 @@ def homeAdmin():
             .order_by(StockInventory.ticker)
             .all()
         )     
+
     except:
         flash("Error retrieving values from DB", "danger")
         return render_template("home.html")            
