@@ -1,48 +1,37 @@
-{# change_mkt_hrs.html #}
 {% extends "base.html" %}
 {% block title %}Change Market Settings{% endblock %}
 
 {% block content %}
 
-<div>
-  <div>
-    <div>
-      <div>
-        <h5>Change Market Hours</h5>
+<div class="container my-5">
+  <div class="row justify-content-center mt-5">
+    <div class="col-12 col-lg-8">
+      <div class="card hover-lift rounded-4 overflow-hidden mt-5">
+        <div class="card-body" style="background-color: #F5F5F5; color:#212529;">
 
-        
-        <div style="margin-bottom: 20px; padding: 15px; border: 2px solid #28a745; border-radius: 5px; background-color: #d4edda;">
-          <h6>Quick Actions</h6>
-          <form method="POST"
-                action="{{ url_for('changeMktHrs') }}"
-                onsubmit="return confirm('Are you sure you want to clear all market closures? This will open the market on all previously closed dates.');">
-            <input type="hidden" name="action" value="clear_all">
-            <button type="submit"
-                    style="background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
-              Open Market (Clear All Closures)
-            </button>
-          </form>
-        </div>
+          <h1 class="card-title text-center h4 fw-bolder py-2 text-dark">Change Market Hours</h1>
 
-        <form action="{{ url_for('changeMktHrs') }}" method="post">
+          <form action="{{ url_for('changeMktHrs') }}" method="post" id="mktHrsForm">
 
-        
-          <div>
-            <div>
-              <h6>Select a Date</h6>
-              <div>
+            <!-- SELECT DATE -->
+            <div class="mt-4 mb-3 px-4">
+              <h6 class="fw-bolder text-dark mb-3">Select a Date</h6>
 
-                
-                <label>Year:
-                  <select id="year" name="year">
-                    {% for y in range(2020, 2031) %}
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-bold text-dark" for="year">Year</label>
+                  <select id="year" name="year" class="form-select"
+                          style="background-color:#F5F5F5; border:none; color:#212529;">
+                    {% for y in range(2025, 2028) %}
                       <option value="{{ y }}">{{ y }}</option>
                     {% endfor %}
                   </select>
-                </label>
+                </div>
 
-                <label>Month:
-                  <select id="month" name="month">
+                <div class="col-md-4">
+                  <label class="form-label fw-bold text-dark" for="month">Month</label>
+                  <select id="month" name="month" class="form-select"
+                          style="background-color:#F5F5F5; border:none; color:#212529;">
                     <option value="01">Jan</option>
                     <option value="02">Feb</option>
                     <option value="03">Mar</option>
@@ -56,76 +45,117 @@
                     <option value="11">Nov</option>
                     <option value="12">Dec</option>
                   </select>
-                </label>
+                </div>
 
-                <label>Day:
-                  <select id="day" name="day">
+                <div class="col-md-4">
+                  <label class="form-label fw-bold text-dark" for="day">Day</label>
+                  <select id="day" name="day" class="form-select"
+                          style="background-color:#F5F5F5; border:none; color:#212529;">
                     {% for d in range(1, 32) %}
                       <option value="{{ "%02d"|format(d) }}">{{ d }}</option>
                     {% endfor %}
                   </select>
+                </div>
+              </div>
+
+              <input type="hidden" id="selected_date" name="selected_date">
+
+              <p class="mt-3 mb-0 fw-bold text-dark">
+                Chosen date: <strong id="datePreview">—</strong>
+              </p>
+
+              <div class="form-check mt-3">
+                <input class="form-check-input" type="checkbox" value="on" id="close_market" name="close_market">
+                <label class="form-check-label fw-bold text-dark" for="close_market">
+                  Confirm closing market.
                 </label>
+              </div>
 
-                <input type="hidden" id="selected_date" name="selected_date">
-
-                <p>Chosen date: <strong id="datePreview">—</strong></p>
-
-                <div>
-                  <input type="checkbox" value="on" id="close_market" name="close_market">
-                  <label for="close_market">
-                    Confirm closing market.
-                  </label>
-                </div>
-
-                <div>
-                  <label for="close_reason">Reason for Closing Market</label>
-                  <input type="text" id="close_reason" name="close_reason" placeholder="e.g. Independence Day">
-                  <div>Enabled once box is checked</div>
-                </div>
+              <div class="mt-2">
+                <label for="close_reason" class="form-label fw-bold text-dark">Please Give a Reason for closing the Market</label>
+                <input type="text"
+                       id="close_reason"
+                       name="close_reason"
+                       class="form-control"
+                       style="background-color:#F5F5F5; border:none; color:#212529;"
+                       placeholder="e.g. Holiday, Maintenance">
               </div>
             </div>
 
-            <div>
-              <h6>Select Day & Market Hours</h6>
+            <hr class="my-4">
 
-              <label for="dayOfWeek">Day of Week</label>
-              <select id="dayOfWeek" name="dayOfWeek">
-                <option value="">-- Pick a day --</option>
-                <option value="Mon">Mon</option>
-                <option value="Tue">Tue</option>
-                <option value="Wed">Wed</option>
-                <option value="Thu">Thu</option>
-                <option value="Fri">Fri</option>
-                <option value="Sat">Sat</option>
-                <option value="Sun">Sun</option>
-              </select>
+            <!-- MARKET HOURS -->
+            <div class="mb-3 px-4">
 
-              <div>
-                <label for="startTime">Open Time</label>
-                <input type="time" id="startTime" name="startTime"
-                       value="{{ market_start|default('07:30') }}">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-bold text-dark" for="dayOfWeek">Choose the day of the week</label>
+                  <select id="dayOfWeek" name="dayOfWeek"
+                          class="form-select"
+                          style="background-color:#F5F5F5; border:none; color:#212529;">
+                    <option value="">-- Pick a day --</option>
+                    <option value="Mon">Mon</option>
+                    <option value="Tue">Tue</option>
+                    <option value="Wed">Wed</option>
+                    <option value="Thu">Thu</option>
+                    <option value="Fri">Fri</option>
+                    <option value="Sat">Sat</option>
+                    <option value="Sun">Sun</option>
+                  </select>
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label fw-bold text-dark" for="startTime">Market Open Time</label>
+                  <input type="time"
+                         id="startTime"
+                         name="startTime"
+                         class="form-control"
+                         style="background-color:#F5F5F5; border:none; color:#212529;"
+                         value="{{ market_start|default('07:30') }}">
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label fw-bold text-dark" for="endTime">Market Closed Time</label>
+                  <input type="time"
+                         id="endTime"
+                         name="endTime"
+                         class="form-control"
+                         style="background-color:#F5F5F5; border:none; color:#212529;"
+                         value="{{ market_end|default('16:00') }}">
+                </div>
               </div>
 
-              <div>
-                <label for="endTime">Close Time</label>
-                <input type="time" id="endTime" name="endTime"
-                       value="{{ market_end|default('16:00') }}">
-              </div>
-
-              <div>
-                All times are in 24 hour format (07:30 - 16:00).
+              <div class="form-text" style="color:#555;">
+                Market time is 7:30 AM to 4:00 PM
               </div>
             </div>
-          </div>
 
-          <div>
-            <button type="submit">Confirm</button>
-          </div>
-        </form>
+            <!-- BUTTONS -->
+            <div class="d-flex justify-content-end gap-3 mt-4 mb-2 px-4">
+              <button type="submit"
+                      class="btn btn-primary rounded-3 fs-5 fw-bold"
+                      style="background-color:#8C1D40; color:#F5F5F5; border:none;">
+                Confirm
+              </button>
+
+              <button type="submit"
+                      name="action"
+                      value="clear_all"
+                      class="btn btn-primary rounded-3 fs-5 fw-bold"
+                      style="background-color:#8C1D40; color:#F5F5F5; border:none;"
+                      onclick="return confirm('Are you sure you want to clear all market closures? This will open the market on all previously closed dates.');">
+                Open Market
+              </button>
+            </div>
+
+          </form>
+
+        </div>
       </div>
     </div>
   </div>
 </div>
+
 
 <script>
   var yearSel = document.getElementById("year");
@@ -135,24 +165,16 @@
   var preview = document.getElementById("datePreview");
 
   function updateDate() {
-    if (!yearSel || !monthSel || !daySel || !hiddenDate || !preview) {
-      return;
-    }
-    var y = yearSel.value;
-    var m = monthSel.value;
-    var d = daySel.value;
-
-    var iso = y + "-" + m + "-" + d; 
+    if (!yearSel || !monthSel || !daySel || !hiddenDate || !preview) return;
+    var iso = yearSel.value + "-" + monthSel.value + "-" + daySel.value;
     hiddenDate.value = iso;
     preview.textContent = iso;
   }
 
-  if (yearSel && monthSel && daySel) {
-    yearSel.addEventListener("change", updateDate);
-    monthSel.addEventListener("change", updateDate);
-    daySel.addEventListener("change", updateDate);
-    updateDate();
-  }
+  yearSel.addEventListener("change", updateDate);
+  monthSel.addEventListener("change", updateDate);
+  daySel.addEventListener("change", updateDate);
+  updateDate();
 
   var closeCheckbox = document.getElementById("close_market");
   var startTimeInput = document.getElementById("startTime");
@@ -160,21 +182,14 @@
   var reasonInput = document.getElementById("close_reason");
 
   function toggleTimeAndReason() {
-    if (!closeCheckbox || !startTimeInput || !endTimeInput || !reasonInput) {
-      return;
-    }
-
     var isClosing = closeCheckbox.checked;
-
     startTimeInput.disabled = isClosing;
     endTimeInput.disabled = isClosing;
     reasonInput.disabled = !isClosing;
   }
 
-  if (closeCheckbox) {
-    closeCheckbox.addEventListener("change", toggleTimeAndReason);
-    toggleTimeAndReason();
-  }
+  closeCheckbox.addEventListener("change", toggleTimeAndReason);
+  toggleTimeAndReason();
 </script>
 
 {% endblock %}
