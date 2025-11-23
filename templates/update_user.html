@@ -2,59 +2,109 @@
 {% block title %}Update User{% endblock %}
 {% block content %}
 
-<div>
-  <div>
-    <div>
-      <div>
-        <h5>{{ user.fullName }}</h5>
-      </div>
+<div class="row justify-content-center">
+  <div class="row mt-1">
+    <div class="col-12 col-lg-6">
+      <div class="card hover-lift rounded-4 overflow-hidden mt-5">
+        <div class="card-body" style="background-color: #F5F5F5;">
+          <h1 class="card-title text-center h4 py-2">{{ user.fullName }}</h1>
 
-      <div>
-        <p>Email</p>
-        <span>{{ user.email }}</span>
-      </div>
-
-      <div>
-        <p>Account Number</p>
-        <span>{{ user.customerAccountNumber }}</span>
-      </div>
-
-      <div>
-        <p>Current Balance</p>
-        <span>${{ user.availableFunds }}</span>
-      </div>
-
-      <form method="post">
-        <div>
-          <label for="fullName">Full Name</label>
-          <div>
-            <input type="text" id="fullName" name="fullName">
+          <div class="mb-3 px-5">
+            <p class="fs-5">Email</p>
+            <span class="fs-5 fw-bold">{{ user.email }}</span>
           </div>
-        </div>
 
-        <div>
-          <label for="email">Email</label>
-          <div>
-            <input type="email" id="email" name="email">
+          <div class=" mb-3 px-5">
+            <p class="fs-5">Username</p>
+            <span class="fs-5 fw-bold">{{ user.username }}</span>
           </div>
-        </div>
 
-        <div>
-          <label for="availableFunds">Balance</label>
-          <div>
-            <input type="number" id="availableFunds" name="availableFunds">
+          <div class="mb-3 px-5">
+            <p class="fs-5">Current Balance</p>
+            <span class="fs-5 fw-bold">${{ "{:,.2f}".format(user.availableFunds) }}</span>
           </div>
-        </div>
 
-        <div>
-          <div>
-            <button type="submit">Submit</button>
-          </div>
-        </div>
-      </form>
 
+          <form action="{{ url_for('updateUser', user_id=user.userId) }}" method="post" id="updateForm">
+
+            <div class="mb-3 px-5">
+              <label for="fullName" class="form-label fs-5">Full Name</label>
+                <input type="text" class="form-control fs-5" id="fullName" name="fullName" style="background-color: #F5F5F5; border: none;">
+            </div>
+
+            <div class="mb-3 px-5">
+              <label for="username" class="form-label fs-5">Username</label>
+                <input type="text" class="form-control fs-5" id="username" name="username" style="background-color: #F5F5F5; border: none;">
+            </div>
+
+            <div class="mb-3 px-5">
+              <label for="email" class="form-label fs-5">Email</label>
+                <input type="text" class="form-control fs-5" id="email" name="email" style="background-color: #F5F5F5; border: none;">
+            </div>
+
+            <div class="mb-3 px-5">
+              <label for="availableFunds" class="form-label fs-5">Balance</label>
+                <input type="number" class="form-control fs-5" id="availableFunds" name="availableFunds" style="background-color: #F5F5F5; border: none;">
+            </div>
+
+            <div class="d-flex align-items-center mb-3 px-5">
+              <button type="button" class="btn btn-primary mb-3 rounded-3 fs-5" style="background-color: #8C1D40; color: #F5F5F5; border: none;" data-bs-toggle="modal" data-bs-target="#confirmation">Submit</button>
+            </div>          
+
+          </form>
+        </div>
+      </div>
     </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card hover-lift rounded-4 overflow-hidden mt-5">
+        <div class="card-body" style="background-color: #F5F5F5;">
+          <h1 class="card-title text-center h4 py-2">Portfolio</h1>
+
+        <div style="max-height: 450px; overflow-y: auto;">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th scope="col" style="background-color: #F5F5F5;">Ticker</th>
+                <th scope="col" style="background-color: #F5F5F5;">Current Price</th>
+                <th scope="col" style="background-color: #F5F5F5;">Owned Shares</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for i in portfolio %}
+              <tr onclick="document.getElementById('ticker').value='{{ i.ticker}}';">
+                <th scope="row" style="background-color: #F5F5F5;">{{ i.ticker }}</th>
+                <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.mktPrice) }}</td>
+                <td style="background-color: #F5F5F5;">{{ i.quantity }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        </div>
+      </div>
+    </div>
+
   </div>
+</div>
+
+  <div class="modal fade" id="confirmation" tabindex="-1" aria-labelledby="confirmationLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header position-relative">
+          <h1 class="modal-title text-center fs-5 w-100 mb-2" id="confirmationLabel">User Update Confirmation</h1>
+          <button type="button" class="btn-close position-absolute end-0 me-2 mb-1" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center">
+          <p class="fs-5 mb-5">Would you like to confirm and update this user?</p>
+          <div class="d-flex justify-content-center gap-4">
+            <button type="button" class="btn btn-primary fs-5" style="background-color: #FFC627; border: none;" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-secondary fs-5" style="background-color: #8C1D40; border: none;" form="updateForm">Submit</button>
+          </div>
+        </div>
+      </div>
+    </div>
 </div>
 
 {% endblock %}

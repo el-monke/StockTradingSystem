@@ -2,32 +2,77 @@
 {% block title %}Withdraw Funds{% endblock %}
 {% block content %}
 
-<div>
-  <div>
-    <div>
-      <div>
-        <h5>Withdraw Funds</h5>
+<div class="row justify-content-center mt-5">
+  <div class="row mt-5">
+    <div class="col-12 col-lg-6">
+      <div class="card hover-lift rounded-4 overflow-hidden mt-5">
+        <div class="card-body" style="background-color: #F5F5F5;">
+          <h1 class="card-title text-center h4 py-2">Withdraw Funds</h1>
 
-        <form action="{{ url_for('withdrawFunds') }}" method="post">
-          <div>
-            <p>Current Balance</p>
-            <span>${{ current_user.availableFunds }}</span>
-          </div>
+          <form action="{{ url_for('withdrawFunds') }}" method="post" id="withdrawForm">
 
-          <div>
-            <label for="amount">Withdrawal Amount</label>
-            <div>
-              <input type="text" id="amount" name="amount">
+            <div class="my-3 px-5 fw-bold">
+              <p class="fs-5">Current Balance: ${{ "{:,.2f}".format(current_user.availableFunds) }}</p>
             </div>
-          </div>
 
-          <div>
-            <div>
-              <button type="submit">Submit</button>
+            <div class="mb-3 px-5">
+              <label for="amount" class="form-label fs-5">Withdrawal Amount</label>
+                <input type="number" class="form-control fs-5" id="amount" name="amount" style="background-color: #F5F5F5; border: none;">
             </div>
-          </div>
-        </form>
 
+            <div class="d-flex align-items-center mb-3 px-5">
+              <button type="button" class="btn btn-primary mb-3 rounded-3 fs-5" style="background-color: #8C1D40; color: #F5F5F5; border: none;" data-bs-toggle="modal" data-bs-target="#confirmation">Submit</button>
+            </div>          
+
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card hover-lift rounded-4 overflow-hidden mt-5">
+        <div class="card-body" style="background-color: #F5F5F5;">
+          <h1 class="card-title text-center h4 py-2">Transaction History</h1>
+
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th scope="col" style="background-color: #F5F5F5;">Type</th>
+                <th scope="col" style="background-color: #F5F5F5;">Amount</th>
+                <th scope="col" style="background-color: #F5F5F5;">Created At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for i in transactions %}
+              <tr>
+                <th scope="row" style="background-color: #F5F5F5;">{{ i.type }}</th>
+                <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.amount) }}</td>
+                <td style="background-color: #F5F5F5;">{{ i.createdAt.strftime('%Y-%m-%d') }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal fade" id="confirmation" tabindex="-1" aria-labelledby="confirmationLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header position-relative">
+        <h1 class="modal-title text-center fs-5 w-100 mb-2" id="confirmationLabel">Withdrawal Transaction Confirmation</h1>
+        <button type="button" class="btn-close position-absolute end-0 me-2 mb-1" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p class="fs-5 mb-5">Would you like to confirm and submit this withdrawal transaction?</p>
+        <div class="d-flex justify-content-center gap-4">
+          <button type="button" class="btn btn-primary fs-5" style="background-color: #8C1D40; border: none;" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-secondary fs-5" style="background-color: #FFC627; border: none;" form="withdrawForm">Submit</button>
+        </div>
       </div>
     </div>
   </div>

@@ -14,13 +14,17 @@ import builtins
 from decimal import Decimal
 from apscheduler.schedulers.background import BackgroundScheduler
 import random
+from sqlalchemy.orm import joinedload
+import builtins
+
+
 
 app = Flask(__name__)
 
 # DATABASE FUNCTIONS------------------------------------------------------------------------------------
 
 # DB configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password@localhost/sts_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Sandwich13!!!@localhost/sts_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your-secret-key'
 
@@ -68,6 +72,14 @@ class StockInventory(db.Model):
     quantity = db.Column(db.Integer)
     initStockPrice = db.Column(db.Float)
     currentMktPrice = db.Column(db.Float)
+    createdAt = db.Column(db.DateTime, nullable=False)
+    updatedAt = db.Column(db.DateTime, nullable=False)
+    volume = db.Column(db.Integer, default=0)                # today's volume
+    dailyOpenPrice = db.Column(db.Float)                     # open for the day
+    dailyHighPrice = db.Column(db.Float)                     # intraday high
+    dailyLowPrice = db.Column(db.Float)                      # intraday low
+    dailyDate = db.Column(db.Date)                           # which day these stats belong to
+
     createdAt = db.Column(db.DateTime, nullable=False)
     updatedAt = db.Column(db.DateTime, nullable=False)
 
@@ -186,10 +198,10 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
-            flash("Please login to access this webpage.", "error")
+            flash("Please login to access this webpage.", "danger")
             return redirect(url_for("signIn"))
         elif not isinstance(current_user, Admin):
-            flash("Please login with an Admin account to access this webpage.", "error")
+            flash("Please login with an Admin account to access this webpage.", "danger")
             return redirect(url_for("home"))
         else:
             return f(*args, **kwargs)
@@ -255,11 +267,11 @@ def createaccount_admin():
         confPassword = request.form.get("confPassword")      
 
         if (fullName == "") or (username == "") or (email == "") or (password == "") or (confPassword == ""):
-            flash("Empty fields. Please try again.", "error")
+            flash("Empty fields. Please try again.", "danger")
             return render_template("create_account_admin.html")
         
         if password != confPassword:
-            flash("Passwords do not match. Please try again.", "error")
+            flash("Passwords do not match. Please try again.", "danger")
             return render_template("create_account_admin.html")
         
         try:
@@ -279,7 +291,7 @@ def createaccount_admin():
         
         except:
             db.session.rollback()
-            flash("Error. Please try again.", "error")
+            flash("Error. Please try again.", "danger")
             return render_template("create_account_admin.html")    
                 
     return render_template("create_account_admin.html")
@@ -313,6 +325,76 @@ def signIn():
         
     return render_template("sign_in.html")
 
+@app.route('/home/admin/updateuser/<int:user_id>', methods=["GET", "POST"])
+@admin_required
+def updateUser(user_id):
+    user = User.query.get_or_404(user_id)
+
+    portfolio = (
+        Portfolio.query.with_entities(
+            Portfolio.ticker,
+            Portfolio.mktPrice,
+            Portfolio.quantity
+        )
+        .filter_by(userId=user.userId)
+        .order_by(Portfolio.ticker)
+        .all()
+    )
+
+    if request.method == "POST":
+        fullName = request.form.get("fullName")
+        username = request.form.get("username")
+        email = request.form.get("email")
+        availableFunds = request.form.get("availableFunds")
+
+        try:
+            if fullName:
+                user.fullName = fullName
+            elif username:
+                user.username = username
+            elif email:
+                user.email = email
+            elif availableFunds:
+                user.availableFunds = availableFunds
+            else:
+                x = 1 / 0    
+            user.updatedAt = datetime.datetime.now()
+        except:
+            flash(f"No change inputted. Please enter values.", "danger")
+            return redirect(url_for('updateUser', user_id=user.userId))
+
+        try:
+            db.session.commit()
+            flash(f"User {user.username} updated successfully!", "success")
+            return redirect(url_for('homeAdmin'))
+        except:
+            db.session.rollback()
+            flash(f"Error updating user. Please try again.", "danger")
+            return redirect(url_for('homeAdmin'))
+
+
+    return render_template("update_user.html", user=user, portfolio=portfolio)
+
+@app.route('/home/admin/deleteuser/<int:user_id>', methods=["POST"])
+@admin_required
+def deleteUser(user_id):
+    user = User.query.get_or_404(user_id)
+
+    if request.method == "POST":
+
+        try:
+            Portfolio.query.filter_by(userId=user.userId).delete()
+            OrderHistory.query.filter_by(userId=user.userId).delete()
+            FinancialTransaction.query.filter_by(username=user.username).delete()
+
+            db.session.delete(user)
+            db.session.commit()
+            flash(f"User {user.username} deleted successfully!", "success")
+        except:
+            db.session.rollback()
+            flash(f"Error deleting user. Please try again.", "danger")
+    return redirect(url_for('homeAdmin'))
+
 # END USER AUTHENTICATION---------------------------------------------------------------------------
 
 # ---------- MARKET STATUS HELPER -------------------------------------------------------------------
@@ -330,17 +412,14 @@ def get_market_status(target_date=None):
         func.date(Exception.holidayDate) == target_date
     ).first()
 
-    # Default
     market_open = False
     market_start = None
     market_end = None
 
-    # Market cannot open if no working day OR if it's a holiday
     if wd and not holiday:
         market_start = wd.startTime
         market_end = wd.endTime
 
-        # Check time only if it's today
         if target_date == now.date():
             current = now.time()
             if market_start <= current <= market_end:
@@ -356,17 +435,12 @@ def get_market_status(target_date=None):
 @app.route("/home")
 @login_required
 def home():
-
     try:
         stock = (
-            StockInventory.query.with_entities(
-            StockInventory.ticker,
-            StockInventory.currentMktPrice,
-            StockInventory.initStockPrice
-            )
-            .order_by(StockInventory.ticker)
-            .limit(3)
-            .all()
+            StockInventory.query
+                .options(joinedload(StockInventory.company))
+                .order_by(StockInventory.ticker)
+                .all()
         )
 
         portfolio = (
@@ -375,19 +449,41 @@ def home():
                 Portfolio.mktPrice,
                 Portfolio.quantity
             )
-            .filter_by(userId=current_user.userId) # <-- filter by logged-in user
+            .filter_by(userId=current_user.userId)
             .order_by(Portfolio.ticker)
             .all()
         )
 
         portfolioValue = calculateValue()
         contributions = calculateContribution()
+        accountValue = current_user.availableFunds + portfolioValue
         totalReturn = (current_user.availableFunds + portfolioValue) - contributions
-    except:
-        flash("Error retrieving values from DB.", "error")
-        return render_template("home.html")
 
-    return render_template("home.html", stock=stock, portfolio=portfolio, totalReturn=totalReturn)
+        labels = ["Liquid", "Invested", "Return"]
+        data = [current_user.availableFunds, portfolioValue, totalReturn]
+
+    except builtins.Exception as e: 
+        flash(f"Error retrieving values from DB: {e}", "danger")
+
+        stock = []
+        portfolio = []
+        portfolioValue = 0.0
+        contributions = 0.0
+        accountValue = float(getattr(current_user, "availableFunds", 0) or 0)
+        totalReturn = 0.0
+        labels = ["Liquid", "Invested", "Return"]
+        data = [accountValue, 0.0, 0.0]
+
+    return render_template(
+        "home.html",
+        stock=stock,
+        portfolio=portfolio,
+        contributions=contributions,
+        accountValue=accountValue,
+        totalReturn=totalReturn,
+        pieLabels=labels,
+        pieData=data,
+    )
     
 # Home Route for Admin
 @app.route("/home/admin")
@@ -396,14 +492,7 @@ def homeAdmin():
 
     try:
         user = (
-            User.query.with_entities(
-                User.fullName,
-                User.email,
-                User.username,
-                User.availableFunds
-            )
-            .order_by(User.fullName)
-            .all()
+            User.query.order_by(User.fullName).all()
         )
 
         stock = (
@@ -417,7 +506,7 @@ def homeAdmin():
             .all()
         )     
     except:
-        flash("Error retrieving values from DB", "error")
+        flash("Error retrieving values from DB", "danger")
         return render_template("home.html")            
 
     return render_template("home_admin.html", user=user, stock=stock)
@@ -435,17 +524,17 @@ def depositFunds():
         amount = request.form.get("amount")
 
         if amount == "":
-            flash("Please enter a deposit amount.", "error")
+            flash("Please enter a deposit amount.", "danger")
             return render_template("deposit.html")
         
         try:
             amount = float(amount)
 
             if (amount <= 0):
-                flash("Deposit amount must be non-negative. Please try again.", "error")
+                flash("Deposit amount must be non-negative. Please try again.", "danger")
                 return render_template("deposit.html")
         except:
-            flash("Error converting deposit amount to float. Please try again.", "error")
+            flash("Error converting deposit amount to float. Please try again.", "danger")
             return render_template("deposit.html")
         
         try:
@@ -456,10 +545,18 @@ def depositFunds():
         
         except:
             db.session.rollback()
-            flash("Error. Please try again.", "error")
+            flash("Error. Please try again.", "danger")
             return render_template("deposit.html")
 
-    return render_template("deposit.html")
+    transactions = (
+        FinancialTransaction.query
+        .filter_by(username=current_user.username)
+        .order_by(FinancialTransaction.createdAt.desc())
+        .limit(10)
+        .all()
+    )
+
+    return render_template("deposit.html", transactions=transactions)
 
 def depositAction(amount):
         
@@ -484,21 +581,21 @@ def withdrawFunds():
         amount = request.form.get("amount")
 
         if amount == "":
-            flash("Please enter a withdrawal amount.", "error")
+            flash("Please enter a withdrawal amount.", "danger")
             return render_template("withdraw.html")
         
         try:
             amount = float(amount)
 
             if (amount <= 0):
-                flash("Withdrawal amount must be positive. Please try again.", "error")
+                flash("Withdrawal amount must be positive. Please try again.", "danger")
                 return render_template("withdraw.html")
             
             if (amount > current_user.availableFunds):
-                flash("Cannot withdraw more than the user's Balance. Please try again.", "error")
+                flash("Cannot withdraw more than the user's Balance. Please try again.", "danger")
                 return render_template("withdraw.html")
         except:
-            flash("Error converting withdrawal amount to float. Please try again.", "error")
+            flash("Error converting withdrawal amount to float. Please try again.", "danger")
             return render_template("withdraw.html")
         
         try:
@@ -508,10 +605,18 @@ def withdrawFunds():
             return redirect(url_for("home"))
         except:
             db.session.rollback()
-            flash("Error. Please try again.", "error")
+            flash("Error. Please try again.", "danger")
             return render_template("withdraw.html")
-        
-    return render_template("withdraw.html")
+
+    transactions = (
+        FinancialTransaction.query
+        .filter_by(username=current_user.username)
+        .order_by(FinancialTransaction.createdAt.desc())
+        .limit(10)
+        .all()
+    )
+
+    return render_template("withdraw.html", transactions=transactions)
 
 def withdrawAction(amount):
 
@@ -531,14 +636,13 @@ def withdrawAction(amount):
 @app.route("/home/buystock", methods=["GET", "POST"])
 @login_required
 def buyStock():
-    # Compute market status once per request (for today)
     market_open, market_start, market_end, holiday = get_market_status()
 
     if request.method == "POST":
 
         # HARD BLOCK if market is closed, even if someone tries to POST manually
         if not market_open:
-            flash("Market is currently closed. You cannot place buy orders.", "error")
+            flash("Market is currently closed. You cannot place buy orders.", "danger")
             return render_template(
                 "buy_stock.html",
                 market_open=market_open,
@@ -551,7 +655,7 @@ def buyStock():
         quantity = request.form.get("quantity")
 
         if (ticker == "") or (quantity == ""):
-            flash("Empty fields. Please enter a ticker and quantity.", "error")
+            flash("Empty fields. Please enter a ticker and quantity.", "danger")
             return render_template(
                 "buy_stock.html",
                 market_open=market_open,
@@ -565,7 +669,7 @@ def buyStock():
             quantity = int(quantity)
 
             if (quantity <= 0):
-                flash("Quantity must be positive. Please try again.", "error")
+                flash("Quantity must be positive. Please try again.", "danger")
                 return render_template(
                     "buy_stock.html",
                     market_open=market_open,
@@ -574,7 +678,7 @@ def buyStock():
                     holiday=holiday
                 )
         except:
-            flash("Error converting quantity to int. Please try again.", "error")
+            flash("Error converting quantity to int. Please try again.", "danger")
             return render_template(
                 "buy_stock.html",
                 market_open=market_open,
@@ -587,7 +691,7 @@ def buyStock():
             stock = StockInventory.query.filter_by(ticker=ticker).first()
 
             if not stock:
-                flash("Stock not found. Please enter a valid stock.", "error")
+                flash("Stock not found. Please enter a valid stock.", "danger")
                 return render_template(
                     "buy_stock.html",
                     market_open=market_open,
@@ -599,7 +703,7 @@ def buyStock():
             transactionAmount = stock.currentMktPrice * quantity
 
             if transactionAmount > current_user.availableFunds:
-                flash("Insufficient funds for this transaction. Please deposit funds.", "error")
+                flash("Insufficient funds for this transaction. Please deposit funds.", "danger")
                 return render_template(
                     "buy_stock.html",
                     market_open=market_open,
@@ -609,7 +713,7 @@ def buyStock():
                 )
 
             if quantity > stock.quantity:
-                flash("Inputted quantity exceeds Market Cap. Please enter a different quantity.", "error")
+                flash("Inputted quantity exceeds Market Cap. Please enter a different quantity.", "danger")
                 return render_template(
                     "buy_stock.html",
                     market_open=market_open,
@@ -618,7 +722,7 @@ def buyStock():
                     holiday=holiday
                 )
         except:
-            flash("Error. Please try again.", "error")
+            flash("Error. Please try again.", "danger")
             return render_template(
                 "buy_stock.html",
                 market_open=market_open,
@@ -641,7 +745,7 @@ def buyStock():
             return redirect(url_for("home"))
         except:
             db.session.rollback()
-            flash("Error placing buy order. Please try again.", "error")
+            flash("Error placing buy order. Please try again.", "danger")
             return render_template(
                 "buy_stock.html",
                 market_open=market_open,
@@ -650,13 +754,24 @@ def buyStock():
                 holiday=holiday
             )
 
+    stock = (
+        StockInventory.query.with_entities(
+        StockInventory.ticker,
+        StockInventory.currentMktPrice,
+        StockInventory.initStockPrice
+        )
+        .order_by(StockInventory.ticker)
+        .all()
+        )    
+
     # GET request
     return render_template(
         "buy_stock.html",
         market_open=market_open,
         market_start=market_start,
         market_end=market_end,
-        holiday=holiday
+        holiday=holiday,
+        stock=stock
     )
 
 # Sell Stock Route
@@ -669,7 +784,7 @@ def sellStock():
         quantity = request.form.get("quantity")
 
         if (ticker == "") or (quantity == "") or (ticker is None) or (quantity is None):
-            flash("Empty fields. Please enter a ticker and quantity.", "error")
+            flash("Empty fields. Please enter a ticker and quantity.", "danger")
             return render_template("sell_stock.html")
         
         try:
@@ -677,17 +792,17 @@ def sellStock():
             quantity = int(quantity)
 
             if (quantity <= 0):
-                flash("Quantity must be positive. Please try again.", "error")
+                flash("Quantity must be positive. Please try again.", "danger")
                 return render_template("sell_stock.html")
         except:
-            flash("Error converting quantity to int. Please try again.", "error")
+            flash("Error converting quantity to int. Please try again.", "danger")
             return render_template("sell_stock.html")
         
         try:
             stock = StockInventory.query.filter_by(ticker=ticker).first()
 
             if not stock:
-                flash("Stock not found. Please enter a valid stock.", "error")
+                flash("Stock not found. Please enter a valid stock.", "danger")
                 return render_template("sell_stock.html")
             
             transactionAmount = stock.currentMktPrice * quantity
@@ -698,14 +813,14 @@ def sellStock():
             )
 
             if (position is None) or position.quantity == 0:
-                flash("User does not own this stock. Please purchase stock to sell.", "error")
+                flash("User does not own this stock. Please purchase stock to sell.", "danger")
                 return render_template("sell_stock.html")
             
             if quantity > position.quantity:
-                flash("Cannot sell more than owned shares. Please enter a different quantity.", "error")
+                flash("Cannot sell more than owned shares. Please enter a different quantity.", "danger")
                 return render_template("sell_stock.html")
         except:
-            flash("Error. Please try again.", "error")
+            flash("Error. Please try again.", "danger")
             return render_template("sell_stock.html")
         
         try:
@@ -722,10 +837,21 @@ def sellStock():
             return redirect(url_for("home"))
         except:
             db.session.rollback()
-            flash("Error placing sell order. Please try again.", "error")
+            flash("Error placing sell order. Please try again.", "danger")
             return render_template("sell_stock.html")
+        
+    portfolio = (
+        Portfolio.query.with_entities(
+            Portfolio.ticker,
+            Portfolio.mktPrice,
+            Portfolio.quantity
+        )
+        .filter_by(userId=current_user.userId)
+        .order_by(Portfolio.ticker)
+        .all()
+    )
 
-    return render_template("sell_stock.html")
+    return render_template("sell_stock.html", portfolio=portfolio)
 
 def orderAction(process, amount, quantity, stock):
 
@@ -830,7 +956,6 @@ def calculateContribution():
 @app.route("/home/order_history")
 @login_required
 def viewOrderHistory():
-    # Get all orders for the logged-in user, most recent first
     orders = (
         OrderHistory.query
         .filter_by(userId=current_user.userId)
@@ -844,29 +969,47 @@ def viewOrderHistory():
 
 # BRETT: RANDOM NUMBER GENERATION -------------------------------------------------------------------
 def _update_stock_prices():
-    """
-    Simple random-walk price generator.
-    Called whenever /api/stock_prices is hit.
-    """
+    now = datetime.datetime.now()
+    today = now.date()
+
+    market_open, market_start, market_end, holiday = get_market_status(today)
+
     stocks = StockInventory.query.all()
 
     for stock in stocks:
-        # If no current price yet, start from initStockPrice
+       
         if stock.currentMktPrice is None:
             stock.currentMktPrice = stock.initStockPrice or 0.0
 
-        # Random change between -5% and +5%
-        change_pct = random.uniform(-0.05, 0.05)
+        if stock.dailyDate != today and market_open:
+            base_price = float(stock.currentMktPrice or stock.initStockPrice or 0.0)
+            stock.dailyDate = today
+            stock.dailyOpenPrice = base_price
+            stock.dailyHighPrice = base_price
+            stock.dailyLowPrice = base_price
+            stock.volume = 0
 
+        if not market_open:
+            continue
+
+        change_pct = random.uniform(-0.03, 0.03)
         new_price = stock.currentMktPrice * (1 + change_pct)
 
-        # Never allow 0 or negative prices
         if new_price < 0.01:
             new_price = 0.01
 
-        # Round to 2 decimals (like a real stock price)
-        stock.currentMktPrice = round(new_price, 2)
-        stock.updatedAt = datetime.datetime.now()
+        new_price = round(new_price, 2)
+        stock.currentMktPrice = new_price
+        stock.updatedAt = now
+
+        if stock.dailyHighPrice is None or new_price > stock.dailyHighPrice:
+            stock.dailyHighPrice = new_price
+        if stock.dailyLowPrice is None or new_price < stock.dailyLowPrice:
+            stock.dailyLowPrice = new_price
+
+        if stock.volume is None:
+            stock.volume = 0
+        stock.volume += random.randint(0, 1000)
 
     db.session.commit()
 
@@ -874,29 +1017,45 @@ def _update_stock_prices():
 @app.route("/api/stock_prices")
 @login_required
 def api_stock_prices():
-    """
-    Returns the latest stock prices as JSON.
-    Also updates prices each time it is called.
-    home.html and home_admin.html poll this.
-    """
     _update_stock_prices()
 
     stocks = (
-        StockInventory.query.with_entities(
+        db.session.query(
             StockInventory.ticker,
             StockInventory.currentMktPrice,
-            StockInventory.initStockPrice
+            StockInventory.initStockPrice,
+            StockInventory.volume,
+            StockInventory.dailyOpenPrice,
+            StockInventory.dailyHighPrice,
+            StockInventory.dailyLowPrice,
+            Company.stockTotalQty
         )
+        .join(Company, StockInventory.companyId == Company.companyId)
         .order_by(StockInventory.ticker)
         .all()
     )
 
     data = []
     for s in stocks:
+        current = float(s.currentMktPrice or 0.0)
+        init_price = float(s.initStockPrice or 0.0)
+        volume = int(s.volume or 0)
+        open_price = float(s.dailyOpenPrice or 0.0)
+        high_price = float(s.dailyHighPrice or 0.0)
+        low_price = float(s.dailyLowPrice or 0.0)
+        total_qty = int(s.stockTotalQty or 0)
+
+        market_cap = current * total_qty if total_qty > 0 else 0.0
+
         data.append({
             "ticker": s.ticker,
-            "currentMktPrice": float(s.currentMktPrice or 0.0),
-            "initStockPrice": float(s.initStockPrice or 0.0),
+            "currentMktPrice": current,
+            "initStockPrice": init_price,
+            "volume": volume,
+            "dailyOpenPrice": open_price,
+            "dailyHighPrice": high_price,
+            "dailyLowPrice": low_price,
+            "marketCap": market_cap,
         })
 
     return jsonify(data)
@@ -917,7 +1076,7 @@ def createStock():
         initStockPrice = request.form.get("initStockPrice")
 
         if (companyName == "") or (companyName is None) or (companyDesc == "") or (companyDesc is None) or (ticker == "") or (ticker is None) or (volume == "") or (volume is None) or (initStockPrice == "") or (initStockPrice is None):
-            flash("Empty fields. Please enter a name, description, ticker, volume, and price.", "error")
+            flash("Empty fields. Please enter a name, description, ticker, volume, and price.", "danger")
             return render_template("create_stock.html")
 
         try:
@@ -926,10 +1085,10 @@ def createStock():
             initStockPrice = float(initStockPrice)
 
             if (volume <= 0) or (initStockPrice <= 0):
-                flash("Volume and Price must be positive. Please try again.", "error")
+                flash("Volume and Price must be positive. Please try again.", "danger")
                 return render_template("create_stock.html")
         except:
-            flash("Error converting values. Please try again.", "error")
+            flash("Error converting values. Please try again.", "danger")
             return render_template("create_stock.html")
 
         try:
@@ -937,7 +1096,7 @@ def createStock():
             stock = StockInventory.query.filter_by(ticker=ticker).first()
 
             if (company) or (stock):
-                flash("Stock/Company already exists. Please create a new stock.", "error")
+                flash("Stock/Company already exists. Please create a new stock.", "danger")
                 return render_template("create_stock.html")
 
             company = addCompany(companyName, companyDesc, ticker, volume, initStockPrice)
@@ -950,12 +1109,20 @@ def createStock():
             return redirect(url_for("homeAdmin"))
         except:
             db.session.rollback()
-            flash("Error creating stock. Please try again.", "error")
+            flash("Error creating stock. Please try again.", "danger")
             return render_template("create_stock.html")
-            
+    
+    stock = (
+        StockInventory.query.with_entities(
+            StockInventory.ticker,
+            StockInventory.currentMktPrice,
+            StockInventory.initStockPrice
+        )
+        .order_by(StockInventory.ticker)
+        .all()
+    )   
 
-
-    return render_template("create_stock.html")
+    return render_template("create_stock.html", stock=stock)
 
 def addCompany(name, description, ticker, volume, initStockPrice):
 
@@ -1019,7 +1186,7 @@ def changeMktHrs():
                 return redirect(url_for("changeMktHrs"))
             except:
                 db.session.rollback()
-                flash("Error saving closed date.", "error")
+                flash("Error saving closed date.", "danger")
   
         day = request.form.get("dayOfWeek", "").strip()
         startTime = request.form.get("startTime", "").strip()
@@ -1030,7 +1197,7 @@ def changeMktHrs():
                 start_time = datetime.datetime.strptime(startTime, "%H:%M").time()
                 end_time = datetime.datetime.strptime(endTime, "%H:%M").time()
             except:
-                flash("Time must be in HH:MM format (HH:MM).", "error")
+                flash("Time must be in HH:MM format (HH:MM).", "danger")
                 return render_template("change_mkt_hrs.html")
 
             day = day[:3].capitalize()
@@ -1061,7 +1228,7 @@ def changeMktHrs():
                 return redirect(url_for("changeMktHrs"))
             except:
                 db.session.rollback()
-                flash("Error saving market hours.", "error")
+                flash("Error saving market hours.", "danger")
 
     workingDays = WorkingDay.query.filter_by(
         adminId=current_user.adminId

@@ -2,50 +2,131 @@
 {% block title %}Buy Stock{% endblock %}
 {% block content %}
 
-<div>
-  <div>
-    <div>
-      <div>
-        <h5>Buy Stock</h5>
+<div class="row justify-content-center mt-5">
+  <div class="row mt-5">
+    <div class="col-12 col-lg-6">
+      <div class="card hover-lift rounded-4 overflow-hidden mt-5">
+        <div class="card-body" style="background-color: #F5F5F5;">
+          <h1 class="card-title text-center h4 py-2">Buy Stock</h1>
 
-        {# {% if not market_open %}
-        <div>
-          Market is closed (Hours: {{ market_start.strftime("%H:%M") }}–{{ market_end.strftime("%H:%M") }}{% if holiday %} · Holiday{% endif %}).
-          Orders are disabled.
+          {# {% if not market_open %}
+          <div>
+            Market is closed (Hours: {{ market_start.strftime("%H:%M") }}–{{ market_end.strftime("%H:%M") }}{% if holiday %} · Holiday{% endif %}).
+            Orders are disabled.
+          </div>
+          {% endif %} #}
+
+          <form action="{{ url_for('buyStock') }}" method="post" id="buyForm">
+
+            <div class="my-4 px-5 fw-bold">
+              <p class="fs-5">Current Balance: ${{ "{:,.2f}".format(current_user.availableFunds) }}</p>
+            </div>
+
+            <div class="mb-3 px-5">
+              <label for="ticker" class="form-label fs-5">Stock - Ticker</label>
+                <input type="text" class="form-control fs-5" id="ticker" name="ticker" style="background-color: #F5F5F5; border: none;">
+            </div>
+
+            <div class="mb-3 px-5">
+              <label for="quantity" class="form-label fs-5">Quantity - Shares</label>
+                <input type="number" class="form-control fs-5" id="quantity" name="quantity" style="background-color: #F5F5F5; border: none;">
+            </div>
+
+            <div class="my-4 px-5 fw-bold">
+              <p class="fs-5" id="totalCost">Total Cost: $ Need to update with JS</p>
+            </div>
+
+            <div class="d-flex align-items-center my-5 px-5">
+              <button type="button" class="btn btn-primary mb-3 rounded-3 fs-5" style="background-color: #8C1D40; color: #F5F5F5; border: none;" data-bs-toggle="modal" data-bs-target="#confirmation" {# {% if not market_open %}disabled{% endif %} #}>Submit</button>
+            </div>          
+
+          </form>
         </div>
-        {% endif %} #}
+      </div>
+    </div>
 
-        <form action="{{ url_for('buyStock') }}" method="post">
-          <div>
-            <p>Current Balance</p>
-            <span>${{ current_user.availableFunds }}</span>
-          </div>
+    <div class="col-12 col-lg-6">
+      <div class="card hover-lift rounded-4 overflow-hidden mt-5">
+        <div class="card-body" style="background-color: #F5F5F5;">
+          <h1 class="card-title text-center h4 py-2">Available Stock</h1>
 
-          <div>
-            <label for="ticker">Stock</label>
-            <div>
-              <input type="text" id="ticker" name="ticker" placeholder="e.g. Microsoft or MSFT">
-            </div>
-          </div>
+        <div style="max-height: 450px; overflow-y: auto;">
+          <table class="table table-hover" id="availableStock">
+            <thead>
+              <tr>
+                <th scope="col" style="background-color: #F5F5F5;">Ticker</th>
+                <th scope="col" style="background-color: #F5F5F5;">Initial Price</th>
+                <th scope="col" style="background-color: #F5F5F5;">Current Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for i in stock %}
+              <tr onclick="document.getElementById('ticker').value='{{ i.ticker}}';">
+                <th scope="row" style="background-color: #F5F5F5;">{{ i.ticker }}</th>
+                <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.initStockPrice) }}</td>
+                <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.currentMktPrice) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        
+        </div>
+      </div>
+    </div>    
 
-          <div>
-            <label for="quantity">Quantity</label>
-            <div>
-              <input type="number" id="quantity" name="quantity" min="1" step="1">
-            </div>
-          </div>
+  </div>
+</div>
 
-          <div>
-            <div>
-              <button type="submit" {# {% if not market_open %}disabled{% endif % #} }>Submit</button>
-            </div>
-          </div>
-        </form>
-
+<div class="modal fade" id="confirmation" tabindex="-1" aria-labelledby="confirmationLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header position-relative">
+        <h1 class="modal-title text-center fs-5 w-100 mb-2" id="confirmationLabel">Buy Order Confirmation</h1>
+        <button type="button" class="btn-close position-absolute end-0 me-2 mb-1" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p class="fs-5 mb-5">Would you like to confirm and submit this buy order?</p>
+        <div class="d-flex justify-content-center gap-4">
+          <button type="button" class="btn btn-primary fs-5" style="background-color: #8C1D40; border: none;" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-secondary fs-5" style="background-color: #FFC627; border: none;" form="buyForm">Submit</button>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-{% endblock %}
+<script>
+  function updateAvailableStockPrices() {
+    fetch('/api/stock_prices')
+      .then(response => response.json())
+      .then(data => {
+        const tbody = document.getElementById('available-stock-table-body');
+        if (!tbody) return;
 
+        tbody.innerHTML = '';
+
+        data.forEach(function (row) {
+          const marketCap = row.marketCap || 0;
+          const volume = row.volume || 0;
+
+          tbody.innerHTML += `
+            <tr onclick="document.getElementById('ticker').value='${row.ticker}';">
+              <th scope="row" style="background-color: #F5F5F5;">${row.ticker}</th>
+              <td style="background-color: #F5F5F5;">$${row.initStockPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">$${row.currentMktPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">$${row.dailyOpenPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">$${row.dailyHighPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">$${row.dailyLowPrice.toFixed(2)}</td>
+              <td style="background-color: #F5F5F5;">${volume.toLocaleString()}</td>
+              <td style="background-color: #F5F5F5;">$${marketCap.toLocaleString()}</td>
+            </tr>`;
+        });
+      });
+  }
+
+  updateAvailableStockPrices();
+  setInterval(updateAvailableStockPrices, 15000);
+</script>
+
+{% endblock %}
