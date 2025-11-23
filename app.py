@@ -17,6 +17,8 @@ import random
 from sqlalchemy.orm import joinedload
 import builtins
 from flask_login import current_user
+from zoneinfo import ZoneInfo
+
 
 
 
@@ -36,6 +38,10 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 
 bcrypt = Bcrypt(app)
+
+def now_az():
+    return datetime.datetime.now(ZoneInfo("America/Phoenix"))
+
 
 # Define User model
 class User(UserMixin, db.Model):
@@ -242,8 +248,8 @@ def createaccount():
                 username=username,
                 email=email,
                 password=hashedPassword,
-                createdAt=datetime.datetime.now(),
-                updatedAt=datetime.datetime.now()
+                createdAt=now_az(),
+                updatedAt=now_az()
             )
             db.session.add(user)
             db.session.commit()
@@ -283,8 +289,8 @@ def createaccount_admin():
                 username=username,
                 email=email,
                 password=hashedPassword,
-                createdAt = datetime.datetime.now(),
-                updatedAt = datetime.datetime.now()
+                createdAt = now_az(),
+                updatedAt = now_az()
             )
             db.session.add(admin)
             db.session.commit()
@@ -360,7 +366,7 @@ def updateUser(user_id):
                 user.availableFunds = availableFunds
             else:
                 x = 1 / 0    
-            user.updatedAt = datetime.datetime.now()
+            user.updatedAt = now_az()
         except:
             flash(f"No change inputted. Please enter values.", "danger")
             return redirect(url_for('updateUser', user_id=user.userId))
@@ -401,7 +407,7 @@ def deleteUser(user_id):
 
 # ---------- MARKET STATUS HELPER -------------------------------------------------------------------
 def get_market_status(target_date=None):
-    now = datetime.datetime.now()
+    now = now_az()
 
     if target_date is None:
         target_date = now.date()
@@ -566,11 +572,11 @@ def depositAction(amount):
         username = current_user.username,
         amount = amount,
         type = "DEPOSIT",
-        createdAt = datetime.datetime.now()
+        createdAt = now_az()
     )
 
     current_user.availableFunds += amount
-    current_user.updatedAt = datetime.datetime.now()
+    current_user.updatedAt = now_az()
     db.session.add(deposit)
     db.session.flush()
     
@@ -626,11 +632,11 @@ def withdrawAction(amount):
         username = current_user.username,
         amount = amount,
         type = "WITHDRAW",
-        createdAt = datetime.datetime.now()
+        createdAt = now_az()
     )
 
     current_user.availableFunds -= amount
-    current_user.updatedAt = datetime.datetime.now()
+    current_user.updatedAt = now_az()
     db.session.add(withdraw)
     db.session.flush()
 
@@ -738,7 +744,7 @@ def buyStock():
 
         try:
             current_user.availableFunds -= transactionAmount
-            current_user.updatedAt = datetime.datetime.now()
+            current_user.updatedAt = now_az()
 
             order = orderAction("BUY", transactionAmount, quantity, stock)
 
@@ -910,7 +916,7 @@ def sellStock():
         
         try:
             current_user.availableFunds += transactionAmount
-            current_user.updatedAt = datetime.datetime.now()
+            current_user.updatedAt = now_az()
 
             order = orderAction("SELL", transactionAmount, quantity, stock)
             updatePortfolio(order)
@@ -958,8 +964,8 @@ def orderAction(process, amount, quantity, stock):
         status = "OPEN",
         companyName = stock.name,
         ticker = stock.ticker,
-        createdAt = datetime.datetime.now(),
-        updatedAt = datetime.datetime.now()
+        createdAt = now_az(),
+        updatedAt = now_az()
     )
 
     db.session.add(order)
@@ -982,8 +988,8 @@ def updatePortfolio(order):
                 ticker = order.ticker,
                 quantity = quantity,
                 mktPrice = order.price,
-                createdAt = datetime.datetime.now(),
-                updatedAt = datetime.datetime.now()
+                createdAt = now_az(),
+                updatedAt = now_az()
             )
 
             db.session.add(portfolio)
@@ -991,7 +997,7 @@ def updatePortfolio(order):
             stock.quantity = stock.quantity + order.quantity
             stock.orderId = order.orderId
             stock.mktPrice = order.price
-            stock.updatedAt = datetime.datetime.now()            
+            stock.updatedAt = now_az()            
     elif order.type == "SELL":
         quantity = order.quantity
 
@@ -1000,7 +1006,7 @@ def updatePortfolio(order):
         if stock.quantity > 0:
             stock.orderId = order.orderId
             stock.mktPrice = order.price
-            stock.updatedAt = datetime.datetime.now()
+            stock.updatedAt = now_az()
         elif stock.quantity == 0:
             db.session.delete(stock)
 
@@ -1057,7 +1063,7 @@ def viewOrderHistory():
 
 # BRETT: RANDOM NUMBER GENERATION -------------------------------------------------------------------
 def _update_stock_prices():
-    now = datetime.datetime.now()
+    now = now_az()
     today = now.date()
 
     market_open, market_start, market_end, holiday = get_market_status(today)
@@ -1220,8 +1226,8 @@ def addCompany(name, description, ticker, volume, initStockPrice):
         stockTotalQty = volume,
         ticker = ticker,
         currentMktPrice = initStockPrice,
-        createdAt = datetime.datetime.now(),
-        updatedAt = datetime.datetime.now()
+        createdAt = now_az(),
+        updatedAt = now_az()
     )
 
     db.session.add(company)
@@ -1239,8 +1245,8 @@ def addStock(company):
         quantity = company.stockTotalQty,
         initStockPrice = company.currentMktPrice,
         currentMktPrice = company.currentMktPrice,
-        createdAt = datetime.datetime.now(),
-        updatedAt = datetime.datetime.now()
+        createdAt = now_az(),
+        updatedAt = now_az()
     )
 
     db.session.add(stock)
@@ -1272,13 +1278,13 @@ def changeMktHrs():
 
         if close_market == "on" and selected_date:
             try:
-                date_obj = datetime.datetime.strptime(selected_date, "%Y-%m-%d")
+                date_obj = datetime.datetime.strptime(selected_date, "%Y-%m-%d").replace(tzinfo=ZoneInfo("America/Phoenix"))
                 ex = Exception(
                     adminId=current_user.adminId,
                     reason=close_reason or "Closed by admin",
                     holidayDate=date_obj,
-                    createdAt=datetime.datetime.now(),
-                    updatedAt=datetime.datetime.now()
+                    createdAt=now_az(),
+                    updatedAt=now_az()
                 )
                 db.session.add(ex)
                 db.session.commit()
@@ -1319,14 +1325,14 @@ def changeMktHrs():
                     dayOfWeek=day,
                     startTime=start_time,
                     endTime=end_time,
-                    createdAt=datetime.datetime.now(),
-                    updatedAt=datetime.datetime.now()
+                    createdAt=now_az(),
+                    updatedAt=now_az()
                 )
                 db.session.add(wd)
             else:
                 wd.startTime = start_time
                 wd.endTime = end_time
-                wd.updatedAt = datetime.datetime.now()
+                wd.updatedAt = now_az()
 
             db.session.commit()
             flash(f"Market hours saved for {day}.", "success")
@@ -1336,7 +1342,6 @@ def changeMktHrs():
             flash("Error saving market hours.", "danger")
             return redirect(url_for("changeMktHrs"))
 
-    # ----- GET: show current working days + closures list -----
     workingDays = WorkingDay.query.filter_by(
         adminId=current_user.adminId
     ).order_by(WorkingDay.dayOfWeek).all()
