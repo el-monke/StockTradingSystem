@@ -16,6 +16,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import random
 from sqlalchemy.orm import joinedload
 import builtins
+from flask_login import current_user
+
 
 
 
@@ -24,7 +26,7 @@ app = Flask(__name__)
 # DATABASE FUNCTIONS------------------------------------------------------------------------------------
 
 # DB configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Sandwich13!!!@localhost/sts_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password@localhost/sts_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your-secret-key'
 
@@ -778,68 +780,15 @@ def buyStock():
 @app.route("/home/sellstock", methods=["GET", "POST"])
 @login_required
 def sellStock():
-    if request.method == "POST":
+    # prevent admins from using user-only route
+    if not isinstance(current_user, User):
+        flash("Sell Stock is only available for user accounts.", "danger")
+        return redirect(url_for("homeAdmin"))
 
-        ticker = request.form.get("ticker")
-        quantity = request.form.get("quantity")
+    # Get today's market status
+    market_open, market_start, market_end, holiday = get_market_status()
 
-        if (ticker == "") or (quantity == "") or (ticker is None) or (quantity is None):
-            flash("Empty fields. Please enter a ticker and quantity.", "danger")
-            return render_template("sell_stock.html")
-        
-        try:
-            ticker = ticker.strip().upper()
-            quantity = int(quantity)
-
-            if (quantity <= 0):
-                flash("Quantity must be positive. Please try again.", "danger")
-                return render_template("sell_stock.html")
-        except:
-            flash("Error converting quantity to int. Please try again.", "danger")
-            return render_template("sell_stock.html")
-        
-        try:
-            stock = StockInventory.query.filter_by(ticker=ticker).first()
-
-            if not stock:
-                flash("Stock not found. Please enter a valid stock.", "danger")
-                return render_template("sell_stock.html")
-            
-            transactionAmount = stock.currentMktPrice * quantity
-
-            position = (
-                Portfolio.query.filter_by(userId=current_user.userId, ticker=ticker)
-                .first()
-            )
-
-            if (position is None) or position.quantity == 0:
-                flash("User does not own this stock. Please purchase stock to sell.", "danger")
-                return render_template("sell_stock.html")
-            
-            if quantity > position.quantity:
-                flash("Cannot sell more than owned shares. Please enter a different quantity.", "danger")
-                return render_template("sell_stock.html")
-        except:
-            flash("Error. Please try again.", "danger")
-            return render_template("sell_stock.html")
-        
-        try:
-            current_user.availableFunds += transactionAmount
-            current_user.updatedAt = datetime.datetime.now()
-
-            order = orderAction("SELL", transactionAmount, quantity, stock)
-
-            updatePortfolio(order)
-
-            db.session.commit()
-
-            flash("Sell order placed successfully.", "success")
-            return redirect(url_for("home"))
-        except:
-            db.session.rollback()
-            flash("Error placing sell order. Please try again.", "danger")
-            return render_template("sell_stock.html")
-        
+    # Portfolio is needed for both GET and POST
     portfolio = (
         Portfolio.query.with_entities(
             Portfolio.ticker,
@@ -851,7 +800,143 @@ def sellStock():
         .all()
     )
 
-    return render_template("sell_stock.html", portfolio=portfolio)
+    if request.method == "POST":
+
+        if not market_open:
+            flash("Market is currently closed. You cannot place sell orders.", "danger")
+            return render_template(
+                "sell_stock.html",
+                portfolio=portfolio,
+                market_open=market_open,
+                market_start=market_start,
+                market_end=market_end,
+                holiday=holiday
+            )
+
+        ticker = request.form.get("ticker")
+        quantity = request.form.get("quantity")
+
+        if (ticker == "") or (quantity == "") or (ticker is None) or (quantity is None):
+            flash("Empty fields. Please enter a ticker and quantity.", "danger")
+            return render_template(
+                "sell_stock.html",
+                portfolio=portfolio,
+                market_open=market_open,
+                market_start=market_start,
+                market_end=market_end,
+                holiday=holiday
+            )
+        
+        try:
+            ticker = ticker.strip().upper()
+            quantity = int(quantity)
+
+            if quantity <= 0:
+                flash("Quantity must be positive. Please try again.", "danger")
+                return render_template(
+                    "sell_stock.html",
+                    portfolio=portfolio,
+                    market_open=market_open,
+                    market_start=market_start,
+                    market_end=market_end,
+                    holiday=holiday
+                )
+        except:
+            flash("Error converting quantity to int. Please try again.", "danger")
+            return render_template(
+                "sell_stock.html",
+                portfolio=portfolio,
+                market_open=market_open,
+                market_start=market_start,
+                market_end=market_end,
+                holiday=holiday
+            )
+        
+        try:
+            stock = StockInventory.query.filter_by(ticker=ticker).first()
+
+            if not stock:
+                flash("Stock not found. Please enter a valid stock.", "danger")
+                return render_template(
+                    "sell_stock.html",
+                    portfolio=portfolio,
+                    market_open=market_open,
+                    market_start=market_start,
+                    market_end=market_end,
+                    holiday=holiday
+                )
+            
+            transactionAmount = stock.currentMktPrice * quantity
+
+            position = (
+                Portfolio.query.filter_by(userId=current_user.userId, ticker=ticker)
+                .first()
+            )
+
+            if (position is None) or position.quantity == 0:
+                flash("User does not own this stock. Please purchase stock to sell.", "danger")
+                return render_template(
+                    "sell_stock.html",
+                    portfolio=portfolio,
+                    market_open=market_open,
+                    market_start=market_start,
+                    market_end=market_end,
+                    holiday=holiday
+                )
+            
+            if quantity > position.quantity:
+                flash("Cannot sell more than owned shares. Please enter a different quantity.", "danger")
+                return render_template(
+                    "sell_stock.html",
+                    portfolio=portfolio,
+                    market_open=market_open,
+                    market_start=market_start,
+                    market_end=market_end,
+                    holiday=holiday
+                )
+        except:
+            flash("Error. Please try again.", "danger")
+            return render_template(
+                "sell_stock.html",
+                portfolio=portfolio,
+                market_open=market_open,
+                market_start=market_start,
+                market_end=market_end,
+                holiday=holiday
+            )
+        
+        try:
+            current_user.availableFunds += transactionAmount
+            current_user.updatedAt = datetime.datetime.now()
+
+            order = orderAction("SELL", transactionAmount, quantity, stock)
+            updatePortfolio(order)
+
+            db.session.commit()
+
+            flash("Sell order placed successfully.", "success")
+            return redirect(url_for("home"))
+        except:
+            db.session.rollback()
+            flash("Error placing sell order. Please try again.", "danger")
+            return render_template(
+                "sell_stock.html",
+                portfolio=portfolio,
+                market_open=market_open,
+                market_start=market_start,
+                market_end=market_end,
+                holiday=holiday
+            )
+
+    # GET request
+    return render_template(
+        "sell_stock.html",
+        portfolio=portfolio,
+        market_open=market_open,
+        market_start=market_start,
+        market_end=market_end,
+        holiday=holiday
+    )
 
 def orderAction(process, amount, quantity, stock):
 
@@ -1165,6 +1250,17 @@ def addStock(company):
 @admin_required
 def changeMktHrs():
     if request.method == "POST":
+        # ---- 0. Quick action: open market (clear all closures) ----
+        action = request.form.get("action", "")
+        if action == "clear_all":
+            try:
+                Exception.query.filter_by(adminId=current_user.adminId).delete()
+                db.session.commit()
+                flash("All market closures cleared. Market is now open on all dates.", "success")
+            except:
+                db.session.rollback()
+                flash("Error clearing market closures.", "danger")
+            return redirect(url_for("changeMktHrs"))
 
         close_market = request.form.get("close_market")
         selected_date = request.form.get("selected_date", "").strip()
@@ -1187,54 +1283,64 @@ def changeMktHrs():
             except:
                 db.session.rollback()
                 flash("Error saving closed date.", "danger")
-  
+                return redirect(url_for("changeMktHrs"))
+
+    
         day = request.form.get("dayOfWeek", "").strip()
         startTime = request.form.get("startTime", "").strip()
         endTime = request.form.get("endTime", "").strip()
 
-        if day and startTime and endTime:
-            try:
-                start_time = datetime.datetime.strptime(startTime, "%H:%M").time()
-                end_time = datetime.datetime.strptime(endTime, "%H:%M").time()
-            except:
-                flash("Time must be in HH:MM format (HH:MM).", "danger")
-                return render_template("change_mkt_hrs.html")
+        
+        if not day or not startTime or not endTime:
+            flash("Please choose a day and enter open/close times.", "danger")
+            return redirect(url_for("changeMktHrs"))
 
-            day = day[:3].capitalize()
+        try:
+            start_time = datetime.datetime.strptime(startTime, "%H:%M").time()
+            end_time = datetime.datetime.strptime(endTime, "%H:%M").time()
+        except:
+            flash("Time must be in HH:MM format (HH:MM).", "danger")
+            return redirect(url_for("changeMktHrs"))
 
-            try:
-                wd = WorkingDay.query.filter_by(
+       
+        day = day[:3].capitalize()
+
+        try:
+            wd = WorkingDay.query.filter_by(
+                adminId=current_user.adminId,
+                dayOfWeek=day
+            ).first()
+
+            if wd is None:
+                wd = WorkingDay(
                     adminId=current_user.adminId,
-                    dayOfWeek=day
-                ).first()
+                    dayOfWeek=day,
+                    startTime=start_time,
+                    endTime=end_time,
+                    createdAt=datetime.datetime.now(),
+                    updatedAt=datetime.datetime.now()
+                )
+                db.session.add(wd)
+            else:
+                wd.startTime = start_time
+                wd.endTime = end_time
+                wd.updatedAt = datetime.datetime.now()
 
-                if wd is None:
-                    wd = WorkingDay(
-                        adminId=current_user.adminId,
-                        dayOfWeek=day,
-                        startTime=start_time,
-                        endTime=end_time,
-                        createdAt=datetime.datetime.now(),
-                        updatedAt=datetime.datetime.now()
-                    )
-                    db.session.add(wd)
-                else:
-                    wd.startTime = start_time
-                    wd.endTime = end_time
-                    wd.updatedAt = datetime.datetime.now()
+            db.session.commit()
+            flash(f"Market hours saved for {day}.", "success")
+            return redirect(url_for("changeMktHrs"))
+        except:
+            db.session.rollback()
+            flash("Error saving market hours.", "danger")
+            return redirect(url_for("changeMktHrs"))
 
-                db.session.commit()
-                flash("Market hours saved.", "success")
-                return redirect(url_for("changeMktHrs"))
-            except:
-                db.session.rollback()
-                flash("Error saving market hours.", "danger")
-
+   
     workingDays = WorkingDay.query.filter_by(
         adminId=current_user.adminId
     ).order_by(WorkingDay.dayOfWeek).all()
 
     return render_template("change_mkt_hrs.html", workingDays=workingDays)
+
 
 
 #Mkt schedule begins
