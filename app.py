@@ -638,11 +638,14 @@ def withdrawAction(amount):
 @app.route("/home/buystock", methods=["GET", "POST"])
 @login_required
 def buyStock():
+    if not isinstance(current_user, User):
+        flash("Buy Stock is only available for user accounts.", "danger")
+        return redirect(url_for("homeAdmin"))
+    
     market_open, market_start, market_end, holiday = get_market_status()
 
     if request.method == "POST":
 
-        # HARD BLOCK if market is closed, even if someone tries to POST manually
         if not market_open:
             flash("Market is currently closed. You cannot place buy orders.", "danger")
             return render_template(
@@ -780,7 +783,7 @@ def buyStock():
 @app.route("/home/sellstock", methods=["GET", "POST"])
 @login_required
 def sellStock():
-    # prevent admins from using user-only route
+    # blocks admin -
     if not isinstance(current_user, User):
         flash("Sell Stock is only available for user accounts.", "danger")
         return redirect(url_for("homeAdmin"))
@@ -1250,7 +1253,6 @@ def addStock(company):
 @admin_required
 def changeMktHrs():
     if request.method == "POST":
-        # ---- 0. Quick action: open market (clear all closures) ----
         action = request.form.get("action", "")
         if action == "clear_all":
             try:
