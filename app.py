@@ -1253,6 +1253,7 @@ def addStock(company):
 @admin_required
 def changeMktHrs():
     if request.method == "POST":
+        # Handle "Open Market" button (clear all closures)
         action = request.form.get("action", "")
         if action == "clear_all":
             try:
@@ -1264,6 +1265,7 @@ def changeMktHrs():
                 flash("Error clearing market closures.", "danger")
             return redirect(url_for("changeMktHrs"))
 
+        # Handle closing a specific date
         close_market = request.form.get("close_market")
         selected_date = request.form.get("selected_date", "").strip()
         close_reason = request.form.get("close_reason", "").strip()
@@ -1287,12 +1289,11 @@ def changeMktHrs():
                 flash("Error saving closed date.", "danger")
                 return redirect(url_for("changeMktHrs"))
 
-    
+        # Handle updating working-day hours
         day = request.form.get("dayOfWeek", "").strip()
         startTime = request.form.get("startTime", "").strip()
         endTime = request.form.get("endTime", "").strip()
 
-        
         if not day or not startTime or not endTime:
             flash("Please choose a day and enter open/close times.", "danger")
             return redirect(url_for("changeMktHrs"))
@@ -1304,7 +1305,6 @@ def changeMktHrs():
             flash("Time must be in HH:MM format (HH:MM).", "danger")
             return redirect(url_for("changeMktHrs"))
 
-       
         day = day[:3].capitalize()
 
         try:
@@ -1336,54 +1336,18 @@ def changeMktHrs():
             flash("Error saving market hours.", "danger")
             return redirect(url_for("changeMktHrs"))
 
-   
+    # ----- GET: show current working days + closures list -----
     workingDays = WorkingDay.query.filter_by(
         adminId=current_user.adminId
     ).order_by(WorkingDay.dayOfWeek).all()
-
-    return render_template("change_mkt_hrs.html", workingDays=workingDays)
-
-
-
-#Mkt schedule begins
-@app.route("/home/admin/changemktschedule", methods=["GET", "POST"])
-@admin_required
-def changeMktSchedule():
-    if request.method == "POST":
-        holidayDate = request.form.get("holidayDate", "").strip()
-        reason = request.form.get("reason", "").strip()
-
-        if not holidayDate:
-            flash("Please enter a date.", "danger")
-            return render_template("change_mkt_schedule.html")
-
-        try:
-            date_obj = datetime.datetime.strptime(holidayDate, "%Y-%m-%d")
-        except:
-            flash("Date must be in YYYY-MM-DD format.", "danger")
-            return render_template("change_mkt_schedule.html")
-
-        try:
-            ex = Exception(
-                adminId=current_user.adminId,
-                reason=reason,
-                holidayDate=date_obj,
-                createdAt=datetime.datetime.now(),
-                updatedAt=datetime.datetime.now()
-            )
-            db.session.add(ex)
-            db.session.commit()
-            flash("Market closure / holiday added.", "success")
-            return redirect(url_for("changeMktSchedule"))
-        except:
-            db.session.rollback()
-            flash("Error saving market schedule.", "danger")
 
     exceptions = Exception.query.filter_by(
         adminId=current_user.adminId
     ).order_by(Exception.holidayDate.desc()).all()
 
-    return render_template("change_mkt_schedule.html", exceptions=exceptions)
+    return render_template("change_mkt_hrs.html",
+                           workingDays=workingDays,
+                           exceptions=exceptions)
 
 # END ADMIN ROUTES-------------------------------------------------------------------------------------
 
