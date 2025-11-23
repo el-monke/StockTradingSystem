@@ -72,7 +72,9 @@
               </div>
 
               <div class="mt-2">
-                <label for="close_reason" class="form-label fw-bold text-dark">Please Give a Reason for closing the Market</label>
+                <label for="close_reason" class="form-label fw-bold text-dark">
+                  Please Give a Reason for closing the Market
+                </label>
                 <input type="text"
                        id="close_reason"
                        name="close_reason"
@@ -149,6 +151,36 @@
             </div>
 
           </form>
+
+          <!-- SCHEDULED CLOSURES LIST -->
+          <div class="mt-5 px-4">
+            <h5 class="fw-bolder text-dark mb-3">Scheduled Market Closures</h5>
+
+            {% if exceptions %}
+            <div class="table-responsive">
+              <table class="table table-sm table-striped align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th class="fw-bold text-dark">Date</th>
+                    <th class="fw-bold text-dark">Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for ex in exceptions %}
+                  <tr>
+                    <td>
+                      {{ ex.holidayDate.strftime("%Y-%m-%d") if ex.holidayDate else "" }}
+                    </td>
+                    <td>{{ ex.reason or "—" }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No scheduled market closures.</p>
+            {% endif %}
+          </div>
 
         </div>
       </div>
