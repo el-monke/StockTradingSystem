@@ -17,6 +17,8 @@ import random
 from sqlalchemy.orm import joinedload
 import builtins
 from flask_login import current_user
+from zoneinfo import ZoneInfo
+
 
 
 
@@ -36,6 +38,10 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 
 bcrypt = Bcrypt(app)
+
+def now_az():
+    return datetime.datetime.now(ZoneInfo("America/Phoenix"))
+
 
 # Define User model
 class User(UserMixin, db.Model):
@@ -243,8 +249,8 @@ def createaccount():
                 username=username,
                 email=email,
                 password=hashedPassword,
-                createdAt=datetime.datetime.now(),
-                updatedAt=datetime.datetime.now()
+                createdAt=now_az(),
+                updatedAt=now_az()
             )
             db.session.add(user)
             db.session.commit()
@@ -284,8 +290,8 @@ def createaccount_admin():
                 username=username,
                 email=email,
                 password=hashedPassword,
-                createdAt = datetime.datetime.now(),
-                updatedAt = datetime.datetime.now()
+                createdAt = now_az(),
+                updatedAt = now_az()
             )
             db.session.add(admin)
             db.session.commit()
@@ -361,7 +367,7 @@ def updateUser(user_id):
                 user.availableFunds = availableFunds
             else:
                 x = 1 / 0    
-            user.updatedAt = datetime.datetime.now()
+            user.updatedAt = now_az()
         except:
             flash(f"No change inputted. Please enter values.", "danger")
             return redirect(url_for('updateUser', user_id=user.userId))
@@ -402,7 +408,7 @@ def deleteUser(user_id):
 
 # ---------- MARKET STATUS HELPER -------------------------------------------------------------------
 def get_market_status(target_date=None):
-    now = datetime.datetime.now()
+    now = now_az()
 
     if target_date is None:
         target_date = now.date()
@@ -576,11 +582,11 @@ def depositAction(amount):
         username = current_user.username,
         amount = amount,
         type = "DEPOSIT",
-        createdAt = datetime.datetime.now()
+        createdAt = now_az()
     )
 
     current_user.availableFunds += amount
-    current_user.updatedAt = datetime.datetime.now()
+    current_user.updatedAt = now_az()
     db.session.add(deposit)
     db.session.flush()
     
@@ -636,11 +642,11 @@ def withdrawAction(amount):
         username = current_user.username,
         amount = amount,
         type = "WITHDRAW",
-        createdAt = datetime.datetime.now()
+        createdAt = now_az()
     )
 
     current_user.availableFunds -= amount
-    current_user.updatedAt = datetime.datetime.now()
+    current_user.updatedAt = now_az()
     db.session.add(withdraw)
     db.session.flush()
 
@@ -648,11 +654,14 @@ def withdrawAction(amount):
 @app.route("/home/buystock", methods=["GET", "POST"])
 @login_required
 def buyStock():
+    if not isinstance(current_user, User):
+        flash("Buy Stock is only available for user accounts.", "danger")
+        return redirect(url_for("homeAdmin"))
+    
     market_open, market_start, market_end, holiday = get_market_status()
 
     if request.method == "POST":
 
-        # HARD BLOCK if market is closed, even if someone tries to POST manually
         if not market_open:
             flash("Market is currently closed. You cannot place buy orders.", "danger")
             return render_template(
@@ -745,7 +754,7 @@ def buyStock():
 
         try:
             current_user.availableFunds -= transactionAmount
-            current_user.updatedAt = datetime.datetime.now()
+            current_user.updatedAt = now_az()
 
             order = orderAction("BUY", transactionAmount, quantity, stock)
 
@@ -790,7 +799,7 @@ def buyStock():
 @app.route("/home/sellstock", methods=["GET", "POST"])
 @login_required
 def sellStock():
-    # prevent admins from using user-only route
+    # blocks admin -
     if not isinstance(current_user, User):
         flash("Sell Stock is only available for user accounts.", "danger")
         return redirect(url_for("homeAdmin"))
@@ -917,7 +926,7 @@ def sellStock():
         
         try:
             current_user.availableFunds += transactionAmount
-            current_user.updatedAt = datetime.datetime.now()
+            current_user.updatedAt = now_az()
 
             order = orderAction("SELL", transactionAmount, quantity, stock)
             updatePortfolio(order)
@@ -965,8 +974,8 @@ def orderAction(process, amount, quantity, stock):
         status = "OPEN",
         companyName = stock.name,
         ticker = stock.ticker,
-        createdAt = datetime.datetime.now(),
-        updatedAt = datetime.datetime.now()
+        createdAt = now_az(),
+        updatedAt = now_az()
     )
 
     db.session.add(order)
@@ -989,8 +998,8 @@ def updatePortfolio(order):
                 ticker = order.ticker,
                 quantity = quantity,
                 mktPrice = order.price,
-                createdAt = datetime.datetime.now(),
-                updatedAt = datetime.datetime.now()
+                createdAt = now_az(),
+                updatedAt = now_az()
             )
 
             db.session.add(portfolio)
@@ -998,7 +1007,7 @@ def updatePortfolio(order):
             stock.quantity = stock.quantity + order.quantity
             stock.orderId = order.orderId
             stock.mktPrice = order.price
-            stock.updatedAt = datetime.datetime.now()            
+            stock.updatedAt = now_az()            
     elif order.type == "SELL":
         quantity = order.quantity
 
@@ -1007,7 +1016,7 @@ def updatePortfolio(order):
         if stock.quantity > 0:
             stock.orderId = order.orderId
             stock.mktPrice = order.price
-            stock.updatedAt = datetime.datetime.now()
+            stock.updatedAt = now_az()
         elif stock.quantity == 0:
             db.session.delete(stock)
 
@@ -1064,7 +1073,7 @@ def viewOrderHistory():
 
 # BRETT: RANDOM NUMBER GENERATION -------------------------------------------------------------------
 def _update_stock_prices():
-    now = datetime.datetime.now()
+    now = now_az()
     today = now.date()
 
     market_open, market_start, market_end, holiday = get_market_status(today)
@@ -1227,8 +1236,8 @@ def addCompany(name, description, ticker, volume, initStockPrice):
         stockTotalQty = volume,
         ticker = ticker,
         currentMktPrice = initStockPrice,
-        createdAt = datetime.datetime.now(),
-        updatedAt = datetime.datetime.now()
+        createdAt = now_az(),
+        updatedAt = now_az()
     )
 
     db.session.add(company)
@@ -1246,8 +1255,8 @@ def addStock(company):
         quantity = company.stockTotalQty,
         initStockPrice = company.currentMktPrice,
         currentMktPrice = company.currentMktPrice,
-        createdAt = datetime.datetime.now(),
-        updatedAt = datetime.datetime.now()
+        createdAt = now_az(),
+        updatedAt = now_az()
     )
 
     db.session.add(stock)
@@ -1260,7 +1269,7 @@ def addStock(company):
 @admin_required
 def changeMktHrs():
     if request.method == "POST":
-        # ---- 0. Quick action: open market (clear all closures) ----
+        # Handle "Open Market" button (clear all closures)
         action = request.form.get("action", "")
         if action == "clear_all":
             try:
@@ -1272,19 +1281,20 @@ def changeMktHrs():
                 flash("Error clearing market closures.", "danger")
             return redirect(url_for("changeMktHrs"))
 
+        # Handle closing a specific date
         close_market = request.form.get("close_market")
         selected_date = request.form.get("selected_date", "").strip()
         close_reason = request.form.get("close_reason", "").strip()
 
         if close_market == "on" and selected_date:
             try:
-                date_obj = datetime.datetime.strptime(selected_date, "%Y-%m-%d")
+                date_obj = datetime.datetime.strptime(selected_date, "%Y-%m-%d").replace(tzinfo=ZoneInfo("America/Phoenix"))
                 ex = Exception(
                     adminId=current_user.adminId,
                     reason=close_reason or "Closed by admin",
                     holidayDate=date_obj,
-                    createdAt=datetime.datetime.now(),
-                    updatedAt=datetime.datetime.now()
+                    createdAt=now_az(),
+                    updatedAt=now_az()
                 )
                 db.session.add(ex)
                 db.session.commit()
@@ -1295,12 +1305,11 @@ def changeMktHrs():
                 flash("Error saving closed date.", "danger")
                 return redirect(url_for("changeMktHrs"))
 
-    
+        # Handle updating working-day hours
         day = request.form.get("dayOfWeek", "").strip()
         startTime = request.form.get("startTime", "").strip()
         endTime = request.form.get("endTime", "").strip()
 
-        
         if not day or not startTime or not endTime:
             flash("Please choose a day and enter open/close times.", "danger")
             return redirect(url_for("changeMktHrs"))
@@ -1312,7 +1321,6 @@ def changeMktHrs():
             flash("Time must be in HH:MM format (HH:MM).", "danger")
             return redirect(url_for("changeMktHrs"))
 
-       
         day = day[:3].capitalize()
 
         try:
@@ -1327,14 +1335,14 @@ def changeMktHrs():
                     dayOfWeek=day,
                     startTime=start_time,
                     endTime=end_time,
-                    createdAt=datetime.datetime.now(),
-                    updatedAt=datetime.datetime.now()
+                    createdAt=now_az(),
+                    updatedAt=now_az()
                 )
                 db.session.add(wd)
             else:
                 wd.startTime = start_time
                 wd.endTime = end_time
-                wd.updatedAt = datetime.datetime.now()
+                wd.updatedAt = now_az()
 
             db.session.commit()
             flash(f"Market hours saved for {day}.", "success")
@@ -1344,54 +1352,17 @@ def changeMktHrs():
             flash("Error saving market hours.", "danger")
             return redirect(url_for("changeMktHrs"))
 
-   
     workingDays = WorkingDay.query.filter_by(
         adminId=current_user.adminId
     ).order_by(WorkingDay.dayOfWeek).all()
-
-    return render_template("change_mkt_hrs.html", workingDays=workingDays)
-
-
-
-#Mkt schedule begins
-@app.route("/home/admin/changemktschedule", methods=["GET", "POST"])
-@admin_required
-def changeMktSchedule():
-    if request.method == "POST":
-        holidayDate = request.form.get("holidayDate", "").strip()
-        reason = request.form.get("reason", "").strip()
-
-        if not holidayDate:
-            flash("Please enter a date.", "danger")
-            return render_template("change_mkt_schedule.html")
-
-        try:
-            date_obj = datetime.datetime.strptime(holidayDate, "%Y-%m-%d")
-        except:
-            flash("Date must be in YYYY-MM-DD format.", "danger")
-            return render_template("change_mkt_schedule.html")
-
-        try:
-            ex = Exception(
-                adminId=current_user.adminId,
-                reason=reason,
-                holidayDate=date_obj,
-                createdAt=datetime.datetime.now(),
-                updatedAt=datetime.datetime.now()
-            )
-            db.session.add(ex)
-            db.session.commit()
-            flash("Market closure / holiday added.", "success")
-            return redirect(url_for("changeMktSchedule"))
-        except:
-            db.session.rollback()
-            flash("Error saving market schedule.", "danger")
 
     exceptions = Exception.query.filter_by(
         adminId=current_user.adminId
     ).order_by(Exception.holidayDate.desc()).all()
 
-    return render_template("change_mkt_schedule.html", exceptions=exceptions)
+    return render_template("change_mkt_hrs.html",
+                           workingDays=workingDays,
+                           exceptions=exceptions)
 
 # END ADMIN ROUTES-------------------------------------------------------------------------------------
 
