@@ -104,7 +104,7 @@
               </thead>
               <tbody id="available-stock-table-body">
                 {% for i in stock %}
-                <tr onclick="document.getElementById('ticker').value='{{ i.ticker}}';">
+                <tr>
                   <th scope="row" style="background-color: #F5F5F5;">{{ i.ticker }}</th>
                   <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.initStockPrice) }}</td>
                   <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.currentMktPrice) }}</td>
@@ -145,7 +145,7 @@
               </thead>
               <tbody>
                 {% for i in portfolio %}
-                <tr onclick="document.getElementById('ticker').value='{{ i.ticker}}';">
+                <tr>
                   <th scope="row" style="background-color: #F5F5F5;">{{ i.ticker }}</th>
                   <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.mktPrice) }}</td>
                   <td style="background-color: #F5F5F5;">{{ i.quantity }}</td>

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Order History{% endblock %}
+{% block content %}
+
+<div class="container mt-5">
+    <div class="card hover-lift rounded-4 overflow-hidden mt-5" style="height: 600px;">
+        <div class="card-body" style="background-color: #F5F5F5;">
+            <h1 class="card-title text-center h4 py-2">Portfolio</h1>
+            <h1 class="text-start h5 mx-2">Current Holdings</h1>
+
+            <table class="table table-hover fs-5">
+                <thead>
+                    <tr>
+                        <th scope="col" style="background-color: #F5F5F5;">Ticker</th>
+                        <th scope="col" style="background-color: #F5F5F5;">Stock Name</th>
+                        <th scope="col" style="background-color: #F5F5F5;">Current Price</th>
+                        <th scope="col" style="background-color: #F5F5F5;">Owned Shares</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in portfolio %}
+                    <tr>
+                        <th scope="row" style="background-color: #F5F5F5;">{{ i.ticker }}</th>
+                        <th class="fw-normal" style="background-color: #F5F5F5;">{{ i.stockName }}</th>
+                        <th class="fw-normal" style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.mktPrice) }}</th>
+                        <th class="fw-normal" style="background-color: #F5F5F5;">{{ i.quantity }}</th>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}

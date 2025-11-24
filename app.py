@@ -439,6 +439,14 @@ def get_market_status(target_date=None):
 
     return market_open, market_start, market_end, holiday
 
+@app.context_processor
+def injectMktStatus():
+    market_open = get_market_status()[0]
+    market_start = get_market_status()[1]
+    market_end = get_market_status()[2]
+    holiday = get_market_status()[3]
+
+    return dict(market_open=market_open, market_start=market_start, market_end=market_end, holiday=holiday)
 
 
 # HOME ROUTES---------------------------------------------------------------------------------------
@@ -1063,6 +1071,29 @@ def viewOrderHistory():
     )
 
     return render_template("order_history.html", orders=orders)
+
+# View Portfolio Route
+@app.route('/home/portfolio', methods=["GET", "POST"])
+@login_required
+def viewPortfolio():
+
+    try:
+        portfolio = (
+            Portfolio.query.with_entities(
+                Portfolio.ticker,
+                Portfolio.stockName,
+                Portfolio.mktPrice,
+                Portfolio.quantity
+            )
+            .filter_by(userId=current_user.userId)
+            .order_by(Portfolio.ticker)
+            .all()
+        )
+    except:
+        flash(f"Error retrieving Portfolio. Please try again.", "danger")
+        return render_template("portfolio.html", portfolio=portfolio)
+
+    return render_template("portfolio.html", portfolio=portfolio)
 
 # END USER ROUTES------------------------------------------------------------------------------------
 

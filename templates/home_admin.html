@@ -77,7 +77,7 @@
         <div class="card-body" style="background-color: #F5F5F5;">
           <h1 class="card-title text-center h4 py-2">Quick Actions</h1>
 
-            <div class="row mt-4">
+            <div class="row mt-5">
               <div class="col ms-5">
                 <a href="{{ url_for('createStock') }}" class="btn btn-primary fs-5" style="background-color: #8C1D40; border: none; width: 75%;">Add Stock</a>
               </div>
@@ -87,17 +87,14 @@
             </div>
 
             <div class="row mt-5">
-              <div class="col ms-5">
-                <a href="{{ url_for('changeMktHrs') }}" class="btn btn-primary fs-5" style="background-color: #8C1D40; border: none; width: 75%;">Change Mkt Hrs</a>
+              <div class="col ms-5 mt-5">
+                <form method="POST" action="{{ url_for('changeMktHrs') }}">
+                  <input type="hidden" name="action" value="clear_all">
+                  <button type="submit" class="btn btn-primary fs-5" style="background-color: green; border: none; width: 75%;">Open Market</button>
+                </form>
               </div>
-            </div>
-
-            <div class="row mt-5">
-              <div class="col ms-5">
-                <a href="{{ url_for('createStock') }}" class="btn btn-primary fs-5" style="background-color: green; border: none; width: 75%;">Open Market</a>
-              </div>
-              <div class="col ms-5">
-                <a href="{{ url_for('createaccount') }}" class="btn btn-primary fs-5" style="background-color: #8C1D40; border: none; width: 75%;">Close Market</a>
+              <div class="col ms-5 mt-5">
+                <a href="{{ url_for('changeMktHrs') }}" class="btn btn-primary fs-5" style="background-color: #8C1D40; border: none; width: 75%;">Mkt Hrs/Sched</a>
               </div>
             </div>
 

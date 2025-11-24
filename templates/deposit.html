@@ -5,23 +5,23 @@
 <div class="row justify-content-center mt-5">
   <div class="row mt-5">
     <div class="col-12 col-lg-6">
-      <div class="card hover-lift rounded-4 overflow-hidden mt-5">
+      <div class="card hover-lift rounded-4 overflow-hidden mt-5" style="height: 500px;">
         <div class="card-body" style="background-color: #F5F5F5;">
           <h1 class="card-title text-center h4 py-2">Deposit Funds</h1>
 
           <form action="{{ url_for('depositFunds') }}" method="post" id="depositForm">
 
-            <div class="my-3 px-5 fw-bold">
+            <div class="my-3 px-5 fw-bold mt-4">
               <p class="fs-5">Current Balance: ${{ "{:,.2f}".format(current_user.availableFunds) }}</p>
             </div>
 
-            <div class="mb-3 px-5">
-              <label for="amount" class="form-label fs-5">Deposit Amount</label>
+            <div class="mb-3 px-5 mt-5">
+              <label for="amount" class="form-label fs-5 mt-3">Deposit Amount</label>
                 <input type="number" class="form-control fs-5" id="amount" name="amount" style="background-color: #F5F5F5; border: none;">
             </div>
 
-            <div class="d-flex align-items-center mb-3 px-5">
-              <button type="button" class="btn btn-primary mb-3 rounded-3 fs-5" style="background-color: #8C1D40; color: #F5F5F5; border: none;" data-bs-toggle="modal" data-bs-target="#confirmation">Submit</button>
+            <div class="d-flex align-items-center mb-3 px-5 mt-5">
+              <button type="button" class="btn btn-primary mb-3 rounded-3 fs-5 mt-5" style="background-color: #8C1D40; color: #F5F5F5; border: none;" data-bs-toggle="modal" data-bs-target="#confirmation">Submit</button>
             </div>          
 
           </form>
@@ -30,28 +30,30 @@
     </div>
 
     <div class="col-12 col-lg-6">
-      <div class="card hover-lift rounded-4 overflow-hidden mt-5">
+      <div class="card hover-lift rounded-4 overflow-hidden mt-5" style="height: 500px;">
         <div class="card-body" style="background-color: #F5F5F5;">
           <h1 class="card-title text-center h4 py-2">Transaction History</h1>
 
-          <table class="table table-hover">
-            <thead>
-              <tr>
-                <th scope="col" style="background-color: #F5F5F5;">Type</th>
-                <th scope="col" style="background-color: #F5F5F5;">Amount</th>
-                <th scope="col" style="background-color: #F5F5F5;">Created At</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for i in transactions %}
-              <tr>
-                <th scope="row" style="background-color: #F5F5F5;">{{ i.type }}</th>
-                <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.amount) }}</td>
-                <td style="background-color: #F5F5F5;">{{ i.createdAt.strftime('%Y-%m-%d') }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+          <div style="max-height: 400px; overflow-y: auto;">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th scope="col" style="background-color: #F5F5F5;">Type</th>
+                  <th scope="col" style="background-color: #F5F5F5;">Amount</th>
+                  <th scope="col" style="background-color: #F5F5F5;">Created At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for i in transactions %}
+                <tr>
+                  <th scope="row" style="background-color: #F5F5F5;">{{ i.type }}</th>
+                  <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.amount) }}</td>
+                  <td style="background-color: #F5F5F5;">{{ i.createdAt.strftime('%Y-%m-%d') }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
 
         </div>
       </div>
