@@ -29,7 +29,7 @@ app = Flask(__name__)
 # DATABASE FUNCTIONS------------------------------------------------------------------------------------
 
 # DB configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password@localhost/sts_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://admin:Pa$$w0rd123@sts-db-final.cq7ucai8kixi.us-east-1.rds.amazonaws.com:3306/sts_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your-secret-key'
 
