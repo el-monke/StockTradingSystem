@@ -46,26 +46,26 @@
         <div class="card-body" style="background-color: #F5F5F5;">
           <h1 class="card-title text-center h4 py-2">Available Stock</h1>
 
-        <div style="max-height: 400px; overflow-y: auto;">
-          <table class="table table-hover" id="availableStock">
-            <thead>
-              <tr>
-                <th scope="col" style="background-color: #F5F5F5;">Ticker</th>
-                <th scope="col" style="background-color: #F5F5F5;">Initial Price</th>
-                <th scope="col" style="background-color: #F5F5F5;">Current Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for i in stock %}
-              <tr onclick="document.getElementById('ticker').value='{{ i.ticker}}';">
-                <th scope="row" style="background-color: #F5F5F5;">{{ i.ticker }}</th>
-                <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.initStockPrice) }}</td>
-                <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.currentMktPrice) }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+          <div style="max-height: 400px; overflow-y: auto;">
+            <table class="table table-hover" id="availableStock">
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Initial Price</th>
+                  <th>Current Price</th>
+                  <th>Open</th>
+                  <th>High</th>
+                  <th>Low</th>
+                  <th>Volume</th>
+                  <th>Market Cap</th>
+                </tr>
+              </thead>
+
+    <tbody id="available-stock-table-body"></tbody>
+  </table>
+</div>
+
+
         
         </div>
       </div>
@@ -102,27 +102,36 @@
 
         tbody.innerHTML = '';
 
-        data.forEach(function (row) {
-          const marketCap = row.marketCap || 0;
-          const volume = row.volume || 0;
+        data.forEach(row => {
+          const initPrice    = Number(row.initStockPrice ?? 0);
+          const currentPrice = Number(row.currentMktPrice ?? 0);
+          const openPrice    = Number(row.dailyOpenPrice ?? initPrice);
+          const highPrice    = Number(row.dailyHighPrice ?? currentPrice);
+          const lowPrice     = Number(row.dailyLowPrice ?? currentPrice);
+          const volume       = Number(row.volume ?? 0);
+          const marketCap    = Number(row.marketCap ?? 0);
 
           tbody.innerHTML += `
-            <tr onclick="document.getElementById('ticker').value='${row.ticker}';">
-              <th scope="row" style="background-color: #F5F5F5;">${row.ticker}</th>
-              <td style="background-color: #F5F5F5;">$${row.initStockPrice.toFixed(2)}</td>
-              <td style="background-color: #F5F5F5;">$${row.currentMktPrice.toFixed(2)}</td>
-              <td style="background-color: #F5F5F5;">$${row.dailyOpenPrice.toFixed(2)}</td>
-              <td style="background-color: #F5F5F5;">$${row.dailyHighPrice.toFixed(2)}</td>
-              <td style="background-color: #F5F5F5;">$${row.dailyLowPrice.toFixed(2)}</td>
-              <td style="background-color: #F5F5F5;">${volume.toLocaleString()}</td>
-              <td style="background-color: #F5F5F5;">$${marketCap.toLocaleString()}</td>
+            <tr onclick="document.getElementById('ticker').value='${row.ticker}'">
+              <td>${row.ticker}</td>
+              <td>$${initPrice.toFixed(2)}</td>
+              <td>$${currentPrice.toFixed(2)}</td>
+              <td>$${openPrice.toFixed(2)}</td>
+              <td>$${highPrice.toFixed(2)}</td>
+              <td>$${lowPrice.toFixed(2)}</td>
+              <td>${volume.toLocaleString()}</td>
+              <td>$${marketCap.toLocaleString()}</td>
             </tr>`;
         });
-      });
+      })
+      .catch(err => console.error('Buy stock update error:', err));
   }
 
   updateAvailableStockPrices();
   setInterval(updateAvailableStockPrices, 15000);
 </script>
+
+
+
 
 {% endblock %}

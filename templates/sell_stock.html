@@ -46,26 +46,30 @@
         <div class="card-body" style="background-color: #F5F5F5;">
           <h1 class="card-title text-center h4 py-2">Owned Stock</h1>
 
-        <div style="max-height: 400px; overflow-y: auto;">
-          <table class="table table-hover">
-            <thead>
-              <tr>
-                <th scope="col" style="background-color: #F5F5F5;">Ticker</th>
-                <th scope="col" style="background-color: #F5F5F5;">Current Price</th>
-                <th scope="col" style="background-color: #F5F5F5;">Owned Shares</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for i in portfolio %}
-              <tr onclick="document.getElementById('ticker').value='{{ i.ticker}}';">
-                <th scope="row" style="background-color: #F5F5F5;">{{ i.ticker }}</th>
-                <td style="background-color: #F5F5F5;">${{ "{:,.2f}".format(i.mktPrice) }}</td>
-                <td style="background-color: #F5F5F5;">{{ i.quantity }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+          <div style="max-height: 400px; overflow-y: auto;">
+            <table class="table table-hover" id="ownedStockTable">
+              <thead>
+                <tr>
+                  <th scope="col" style="background-color: #F5F5F5;">Ticker</th>
+                  <th scope="col" style="background-color: #F5F5F5;">Current Price</th>
+                  <th scope="col" style="background-color: #F5F5F5;">Owned Shares</th>
+                </tr>
+              </thead>
+              <tbody id="owned-stock-table-body">
+                {% for i in portfolio %}
+                <tr data-ticker="{{ i.ticker }}" onclick="document.getElementById('ticker').value='{{ i.ticker}}';">
+                  <th scope="row" style="background-color: #F5F5F5;">{{ i.ticker }}</th>
+                  <td class="current-price-cell" style="background-color: #F5F5F5;">
+                    ${{ "{:,.2f}".format(i.mktPrice) }}
+                  </td>
+                  <td style="background-color: #F5F5F5;">{{ i.quantity }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+
 
         </div>
       </div>
@@ -91,5 +95,43 @@
       </div>
     </div>
 </div>
+
+<script>
+  function updateOwnedStockPrices() {
+    fetch('/api/stock_prices')
+      .then(response => response.json())
+      .then(data => {
+        const priceMap = {};
+        data.forEach(row => {
+          const ticker = (row.ticker || '').trim();
+          const currentPrice = Number(row.currentMktPrice ?? 0);
+          if (ticker) {
+            priceMap[ticker] = currentPrice;
+          }
+        });
+
+        const tbody = document.getElementById('owned-stock-table-body');
+        if (!tbody) return;
+
+        tbody.querySelectorAll('tr').forEach(tr => {
+          const ticker = (tr.dataset.ticker || '').trim();
+          const priceCell = tr.querySelector('.current-price-cell');
+          if (!ticker || !priceCell) return;
+
+          const price = priceMap[ticker];
+          if (price !== undefined) {
+            priceCell.textContent = `$${price.toFixed(2)}`;
+          }
+        });
+      })
+      .catch(err => {
+        console.error('Sell stock update error:', err);
+      });
+  }
+
+  // (This is the same for Home / Buy)
+  updateOwnedStockPrices();
+  setInterval(updateOwnedStockPrices, 15000);
+</script>
 
 {% endblock %}
