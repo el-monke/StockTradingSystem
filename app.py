@@ -18,6 +18,7 @@ from sqlalchemy.orm import joinedload
 import builtins
 from flask_login import current_user
 from zoneinfo import ZoneInfo
+from datetime import time as dtime, date as ddate
 
 
 
@@ -41,6 +42,9 @@ bcrypt = Bcrypt(app)
 
 def now_az():
     return datetime.datetime.now(ZoneInfo("America/Phoenix"))
+
+def get_default_market_hours(target_date=None):
+    return dtime(7, 30), dtime(23, 59)
 
 
 # Define User model
@@ -87,7 +91,6 @@ class StockInventory(db.Model):
     dailyHighPrice = db.Column(db.Float)                     # intraday high
     dailyLowPrice = db.Column(db.Float)                      # intraday low
     dailyDate = db.Column(db.Date)                           # which day these stats belong to
-    company = db.relationship("Company", backref="stock")
 
     createdAt = db.Column(db.DateTime, nullable=False)
     updatedAt = db.Column(db.DateTime, nullable=False)
@@ -406,6 +409,7 @@ def deleteUser(user_id):
 
 # END USER AUTHENTICATION---------------------------------------------------------------------------
 
+
 # ---------- MARKET STATUS HELPER -------------------------------------------------------------------
 def get_market_status(target_date=None):
     now = now_az()
@@ -413,38 +417,29 @@ def get_market_status(target_date=None):
     if target_date is None:
         target_date = now.date()
 
-    weekday_abbr = target_date.strftime("%a")[:3]
-
-    wd = WorkingDay.query.filter_by(dayOfWeek=weekday_abbr).first()
-
+    # Check the date
     holiday = Exception.query.filter(
         func.date(Exception.holidayDate) == target_date
     ).first()
 
+    # Default market hours EVERY DAY 07:30 – 23:59
+    market_start = dtime(7, 30)
+    market_end = dtime(23, 59)
+
+    # Start market closed, then checks time / holiday (what we close)
     market_open = False
-    market_start = None
-    market_end = None
 
-    if wd and not holiday:
-        market_start = wd.startTime
-        market_end = wd.endTime
+    if holiday:
+        return market_open, market_start, market_end, holiday
 
-        if target_date == now.date():
-            current = now.time()
-            if market_start <= current <= market_end:
-                market_open = True
+    if target_date == now.date():
+        current = now.time()
+        if market_start <= current <= market_end:
+            market_open = True
 
     return market_open, market_start, market_end, holiday
 
-@app.context_processor
-def injectMktStatus():
-    market_open = get_market_status()[0]
-    market_start = get_market_status()[1]
-    market_end = get_market_status()[2]
-    holiday = get_market_status()[3]
 
-    return dict(market_open=market_open, market_start=market_start, market_end=market_end, holiday=holiday)
-# -------------------------------------------------------------------
 
 # HOME ROUTES---------------------------------------------------------------------------------------
 
@@ -522,7 +517,6 @@ def homeAdmin():
             .order_by(StockInventory.ticker)
             .all()
         )     
-
     except:
         flash("Error retrieving values from DB", "danger")
         return render_template("home.html")            
@@ -654,6 +648,7 @@ def withdrawAction(amount):
 @app.route("/home/buystock", methods=["GET", "POST"])
 @login_required
 def buyStock():
+    #kick admin to home since it's only usuable for users
     if not isinstance(current_user, User):
         flash("Buy Stock is only available for user accounts.", "danger")
         return redirect(url_for("homeAdmin"))
@@ -799,12 +794,12 @@ def buyStock():
 @app.route("/home/sellstock", methods=["GET", "POST"])
 @login_required
 def sellStock():
-    # blocks admin -
+    # kick admin to home since it's only usuable for users
     if not isinstance(current_user, User):
         flash("Sell Stock is only available for user accounts.", "danger")
         return redirect(url_for("homeAdmin"))
 
-    # Get today's market status
+    #check market
     market_open, market_start, market_end, holiday = get_market_status()
 
     # Portfolio is needed for both GET and POST
@@ -1264,12 +1259,12 @@ def addStock(company):
 
 # PUT CHANGEMKTHRS/CHANGEMKTSCHEDULE HERE
 
-#Market hrs begins
+#Market Hours Route
 @app.route("/home/admin/changemkthrs", methods=["GET", "POST"])
 @admin_required
 def changeMktHrs():
     if request.method == "POST":
-        # Handle "Open Market" button (clear all closures)
+        #Open Market Button
         action = request.form.get("action", "")
         if action == "clear_all":
             try:
@@ -1280,8 +1275,9 @@ def changeMktHrs():
                 db.session.rollback()
                 flash("Error clearing market closures.", "danger")
             return redirect(url_for("changeMktHrs"))
+        #End Open Market Button
 
-        # Handle closing a specific date
+        # CLOSING SPECIFIC DAY BASED ON AZ
         close_market = request.form.get("close_market")
         selected_date = request.form.get("selected_date", "").strip()
         close_reason = request.form.get("close_reason", "").strip()
@@ -1305,7 +1301,7 @@ def changeMktHrs():
                 flash("Error saving closed date.", "danger")
                 return redirect(url_for("changeMktHrs"))
 
-        # Handle updating working-day hours
+        # Updating working day hours
         day = request.form.get("dayOfWeek", "").strip()
         startTime = request.form.get("startTime", "").strip()
         endTime = request.form.get("endTime", "").strip()
