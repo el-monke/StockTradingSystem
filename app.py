@@ -1340,8 +1340,8 @@ def changeMktHrs():
             return redirect(url_for("changeMktHrs"))
 
         try:
-            start_time = datetime.datetime.strptime(startTime, "%H:%M").time()
-            end_time = datetime.datetime.strptime(endTime, "%H:%M").time()
+            start_time = datetime.datetime.strptime(startTime, "%H:%M:%S").time()
+            end_time = datetime.datetime.strptime(endTime, "%H:%M:%S").time()
         except:
             flash("Time must be in HH:MM format (HH:MM).", "danger")
             return redirect(url_for("changeMktHrs"))
